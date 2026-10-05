@@ -1,0 +1,9 @@
+# Verification artifacts. Receipts are evidence for one run, not source.
+.verify/
+
+# Never commit a token cache.
+.token-cache/
+
+__pycache__/
+*.pyc
+.DS_Store
