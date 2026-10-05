@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cskwork/skills: the skills, system prompt, and toolkit I use every day</title>
+<meta name="description" content="14 agent skills, one system prompt (AGENTS.md), and eight CLIs I run every day with Claude Code and Codex. Install with npx skills@latest add cskwork/skills.">
+<meta property="og:title" content="cskwork/skills">
+<meta property="og:description" content="14 agent skills, one system prompt, and eight CLIs. Every skill credited to its author and upstream commit.">
+<meta property="og:url" content="https://cskwork.github.io/skills/">
+<meta name="theme-color" content="#1f3bd6">
+<link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face {
+  font-family: "Archivo";
+  src: url("assets/fonts/archivo-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+
+:root {
+  --blue: #1f3bd6;
+  --blue-deep: #172ca3;
+  --blue-ink: #c9d2ff;
+  --yellow: #ffd23f;
+  --black: #111114;
+  --paper: #f7f7f5;
+  --white: #ffffff;
+  --rule: #111114;
+  --muted: #4a4a55;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --gutter: clamp(1.25rem, 4vw, 4rem);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scrollbar-color: var(--blue) var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--black);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  font-stretch: 100%;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--blue);
+}
+::selection { background: var(--yellow); color: var(--black); }
+a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; border-radius: 2px; box-shadow: 0 0 0 6px var(--black); }
+code, .mono { font-family: var(--mono); font-size: .9em; font-variant-numeric: tabular-nums; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 1rem; top: 1rem; z-index: 10; background: var(--yellow); padding: .5rem 1rem; }
+.icon { width: 1em; height: 1em; flex: none; }
+
+/* ---------- Top bar ---------- */
+.bar {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 1rem var(--gutter);
+  font-weight: 700; font-stretch: 85%; letter-spacing: .02em; text-transform: uppercase; font-size: .8125rem;
+}
+.bar nav { display: flex; gap: clamp(.75rem, 2vw, 1.75rem); flex-wrap: wrap; }
+.bar a { text-decoration: none; }
+.bar a:hover { text-decoration: underline; }
+.bar .gh { display: inline-flex; align-items: center; gap: .4rem; }
+
+/* ---------- Hero: sleeve + disc ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: var(--sleeve) 1fr;
+  gap: 0;
+  padding: clamp(.5rem, 2vw, 1.5rem) var(--gutter) clamp(3rem, 7vw, 6rem);
+  --sleeve: min(76vh, 47vw, 720px);
+  align-items: center;
+}
+.deck { position: relative; width: var(--sleeve); aspect-ratio: 1; }
+.disc {
+  position: absolute; inset: 3%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--black) 0 1.6%, var(--yellow) 1.7% 17%, #0b0b0d 17.3% 18.5%, transparent 18.6%),
+    repeating-radial-gradient(circle at 50% 50%, #18181c 0 1.1px, #0c0c0e 1.2px 2.6px),
+    #0c0c0e;
+  box-shadow: 0 18px 40px -12px rgb(0 0 0 / .45);
+  transform: translateX(44%);
+  animation: slide 1.6s var(--ease) both .2s;
+}
+.label {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  animation: spin 14s linear infinite;
+}
+.label span {
+  position: absolute; top: 37.5%; width: 30%; text-align: center;
+  font-weight: 800; font-stretch: 70%; font-size: calc(var(--sleeve) * .022); letter-spacing: .08em; text-transform: uppercase; color: var(--black);
+}
+.label span + span { top: auto; bottom: 37.5%; font-weight: 600; }
+@keyframes slide { from { transform: translateX(0); } to { transform: translateX(44%); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.sleeve {
+  position: absolute; inset: 0;
+  background: var(--blue);
+  color: var(--white);
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  padding: calc(var(--sleeve) * .06);
+  box-shadow: 0 24px 50px -20px rgb(17 17 40 / .55), inset 0 0 0 1px rgb(255 255 255 / .06);
+  overflow: hidden;
+}
+.sleeve::before { /* printed-board grain */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.sleeve .artist {
+  margin: 0; font-weight: 800; font-stretch: 80%; text-transform: uppercase; letter-spacing: .04em;
+  font-size: max(1rem, calc(var(--sleeve) * .042)); display: flex; justify-content: space-between; align-items: baseline;
+}
+.sleeve .artist small { font-weight: 600; font-size: max(.6875rem, .5em); letter-spacing: .14em; color: var(--blue-ink); }
+.sleeve h1 {
+  align-self: end; margin: 0;
+  font-weight: 900; font-stretch: 62%; text-transform: uppercase;
+  font-size: calc(var(--sleeve) * .372); line-height: .78; letter-spacing: -.03em;
+  margin-left: -.03em;
+}
+.sleeve h1 .slash { color: var(--black); }
+.sleeve .band {
+  margin: calc(var(--sleeve) * .03) calc(var(--sleeve) * -.06) 0;
+  background: var(--black); color: var(--white);
+  padding: calc(var(--sleeve) * .018) calc(var(--sleeve) * .06);
+  font-weight: 700; font-stretch: 75%; text-transform: uppercase; letter-spacing: .12em;
+  font-size: max(.6875rem, calc(var(--sleeve) * .022));
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem;
+}
+.sleeve .foot {
+  margin-top: calc(var(--sleeve) * .03);
+  font-size: max(.6875rem, calc(var(--sleeve) * .02)); color: var(--blue-ink); font-weight: 500; letter-spacing: .02em;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem;
+}
+
+.sticker {
+  position: absolute; z-index: 3;
+  right: calc(var(--sleeve) * -.1); top: calc(var(--sleeve) * .2);
+  width: calc(var(--sleeve) * .62); min-width: 15rem;
+  background: var(--yellow); color: var(--black);
+  padding: 1rem 1.1rem 1.05rem;
+  border-radius: 6px;
+  transform: rotate(-4deg);
+  box-shadow: 0 10px 24px -8px rgb(0 0 0 / .45);
+}
+.sticker p { margin: 0 0 .55rem; font-weight: 900; font-stretch: 68%; text-transform: uppercase; font-size: 1.35rem; line-height: .95; letter-spacing: .01em; }
+.cmd {
+  display: flex; align-items: stretch; gap: 0; min-width: 0; max-width: 100%;
+  background: var(--black); color: var(--white); border-radius: 4px; overflow: hidden;
+  border: 2px solid var(--black);
+}
+.cmd code { padding: .6rem .7rem; font-size: .8125rem; white-space: nowrap; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: thin; scrollbar-color: #55555f transparent; }
+.cmd code, .gear dd code { white-space: normal; overflow-wrap: normal; }
+code .t { white-space: nowrap; }
+.hero > *, .bonus > *, .bonus dd, .bonus dl > div, .signoff > *, .note, .gear dd, .side { min-width: 0; }
+.copy {
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: .35rem;
+  padding: 0 .75rem; font-family: var(--sans); font-weight: 700; font-stretch: 80%; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em;
+  background: var(--white); color: var(--black);
+  transition: background .2s var(--ease);
+}
+.copy:hover { background: var(--yellow); }
+.copy:focus-visible { outline: 3px solid var(--yellow); outline-offset: -3px; box-shadow: none; }
+.copy[data-state="done"] { background: var(--yellow); }
+
+.pitch {
+  padding-left: calc(var(--sleeve) * .5);
+  max-width: calc(var(--sleeve) * .5 + 30rem);
+}
+.pitch .lede {
+  font-weight: 800; font-stretch: 72%; text-transform: uppercase;
+  font-size: clamp(2rem, 3.6vw, 3.4rem); line-height: .95; letter-spacing: -.01em; margin: 0 0 1.25rem;
+}
+.pitch p { margin: 0 0 1rem; max-width: 34ch; }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .8rem 1.1rem; text-decoration: none; border-radius: 3px;
+  font-weight: 800; font-stretch: 80%; text-transform: uppercase; letter-spacing: .06em; font-size: .875rem;
+  border: 2px solid var(--black);
+  transition: background .2s var(--ease), color .2s var(--ease);
+}
+.btn.primary { background: var(--black); color: var(--white); }
+.btn.primary:hover { background: var(--blue); border-color: var(--blue); }
+.btn:not(.primary):hover { background: var(--black); color: var(--white); }
+
+/* ---------- Section heads ---------- */
+section { padding: clamp(3.5rem, 8vw, 7rem) var(--gutter); }
+.head {
+  display: grid; grid-template-columns: 1fr minmax(0, 30rem); gap: 1rem 3rem; align-items: end;
+  border-bottom: 3px solid var(--rule); padding-bottom: 1rem; margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+.head h2 {
+  margin: 0; font-weight: 900; font-stretch: 62%; text-transform: uppercase;
+  font-size: clamp(3rem, 9vw, 6rem); line-height: .82; letter-spacing: -.02em;
+}
+.head p { margin: 0; color: var(--muted); }
+
+/* ---------- Tracklist ---------- */
+.tracklist { background: var(--white); }
+.sides { display: grid; grid-template-columns: 1.15fr 1fr; gap: clamp(2rem, 4vw, 4rem); }
+.sides .col { display: grid; gap: clamp(2rem, 4vw, 3.25rem); align-content: start; }
+.side h3 {
+  margin: 0 0 .25rem; display: flex; align-items: baseline; gap: .75rem;
+  font-weight: 800; font-stretch: 75%; text-transform: uppercase; font-size: 1.5rem; letter-spacing: .02em;
+}
+.side h3 .letter {
+  display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  background: var(--blue); color: var(--white); font-size: 1.15rem; font-stretch: 70%; transform: translateY(-.1rem);
+}
+.side h3 small { font-size: .75rem; font-weight: 600; letter-spacing: .1em; color: var(--muted); margin-left: auto; }
+.side ol { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--rule); }
+.side li { border-bottom: 1px solid #d5d5da; }
+.side details > summary {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: 2.6rem 1fr auto 1.25rem; align-items: baseline; gap: .75rem;
+  padding: .8rem .25rem;
+  transition: background .2s var(--ease);
+}
+.side details > summary::-webkit-details-marker { display: none; }
+.side summary:hover { background: #eef0fb; }
+.side .no { font-family: var(--mono); font-size: .8125rem; color: var(--blue); font-weight: 600; }
+.side .title { font-weight: 700; font-size: 1.125rem; font-stretch: 90%; }
+.side .by { font-size: .875rem; color: var(--muted); text-align: right; }
+.side .by i { font-style: normal; font-family: var(--mono); font-size: .75rem; color: var(--blue); margin-left: .6rem; }
+.side .chev { width: 1rem; height: 1rem; align-self: center; transition: transform .35s var(--ease); color: var(--blue); }
+.side details[open] .chev { transform: rotate(45deg); }
+.note { padding: .25rem .25rem 1.25rem 3.35rem; display: grid; gap: .7rem; }
+.note p { margin: 0; max-width: 62ch; }
+.note .matrix { font-family: var(--mono); font-size: .8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.note .matrix a { color: var(--blue); }
+.note .cmd { max-width: 40rem; }
+.bonus { margin-top: clamp(2.5rem, 5vw, 4rem); border: 2px dashed var(--black); padding: clamp(1.25rem, 3vw, 2rem); display: grid; grid-template-columns: minmax(0, 16rem) 1fr; gap: 1.5rem 3rem; }
+.bonus h3 { margin: 0; font-weight: 900; font-stretch: 65%; text-transform: uppercase; font-size: 2rem; line-height: .95; }
+.bonus h3 + p { margin: .5rem 0 0; color: var(--muted); font-size: .9375rem; }
+.bonus dl { margin: 0; display: grid; gap: 1.25rem; }
+.bonus dt { font-weight: 800; font-size: 1.125rem; font-stretch: 90%; }
+.bonus dd { margin: .2rem 0 0; display: grid; gap: .5rem; }
+.bonus dd p { margin: 0; }
+
+/* ---------- Liner notes ---------- */
+.liner { background: var(--blue); color: var(--white); }
+.liner .head { border-color: var(--white); }
+.liner .head p { color: var(--blue-ink); }
+.liner blockquote {
+  margin: 0 0 clamp(2rem, 4vw, 3rem); max-width: 22ch;
+  font-weight: 900; font-stretch: 66%; text-transform: uppercase;
+  font-size: clamp(2.25rem, 5.4vw, 4.75rem); line-height: .92; letter-spacing: -.01em;
+}
+.liner blockquote::before { content: "\201C"; color: var(--yellow); margin-right: .05em; }
+.liner blockquote::after { content: "\201D"; color: var(--yellow); }
+.essay { columns: 3 18rem; column-gap: clamp(1.5rem, 3vw, 3rem); column-rule: 1px solid rgb(255 255 255 / .25); font-size: .9375rem; line-height: 1.6; }
+.essay p { margin: 0 0 1rem; break-inside: avoid-column; }
+.essay p:first-child::first-letter { float: left; font-weight: 900; font-stretch: 62%; font-size: 4.2rem; line-height: .8; margin: .25rem .4rem 0 0; color: var(--yellow); }
+.signoff { margin-top: 2rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1.25rem; border-top: 1px solid rgb(255 255 255 / .35); padding-top: 1.5rem; }
+.signoff .who { font-weight: 800; font-stretch: 80%; text-transform: uppercase; letter-spacing: .08em; }
+.signoff .cmd { flex: 1 1 28rem; max-width: 46rem; }
+.liner a { color: var(--white); }
+.liner ::selection { background: var(--yellow); color: var(--black); }
+
+/* ---------- Recorded with ---------- */
+.gear dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(2rem, 5vw, 5rem); }
+.gear .row { display: grid; grid-template-columns: 9.5rem 1fr; gap: .25rem 1.25rem; padding: 1.1rem 0; border-bottom: 1px solid #cfcfd6; }
+.gear dt { font-weight: 600; font-stretch: 85%; text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; color: var(--muted); padding-top: .35rem; }
+.gear dd { margin: 0; }
+.gear dd a.name { font-weight: 900; font-stretch: 72%; text-transform: uppercase; font-size: 1.6rem; line-height: 1; text-decoration: none; }
+.gear dd a.name:hover { color: var(--blue); }
+.gear dd p { margin: .3rem 0 .45rem; font-size: .9375rem; }
+.gear dd code { display: block; max-width: 100%; width: fit-content; font-size: .78rem; background: #ececf0; padding: .25rem .5rem; border-radius: 3px; overflow-x: auto; }
+
+/* ---------- Credits ---------- */
+.credits { background: var(--black); color: var(--white); }
+.credits .head { border-color: var(--white); }
+.credits .head p { color: #b5b5c0; }
+.credit-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 2rem 3rem; margin: 0; }
+.credit-list div { border-top: 1px solid #3a3a44; padding-top: .9rem; }
+.credit-list dt { font-weight: 900; font-stretch: 72%; text-transform: uppercase; font-size: 1.5rem; line-height: 1; }
+.credit-list dt a { text-decoration: none; }
+.credit-list dt a:hover { color: var(--yellow); }
+.credit-list dd { margin: .45rem 0 0; color: #c4c4cc; font-size: .9375rem; }
+.credit-list dd .lic { display: block; margin-top: .35rem; font-family: var(--mono); font-size: .75rem; color: var(--yellow); }
+.runout {
+  margin-top: clamp(3rem, 6vw, 5rem); padding-top: 1.25rem; border-top: 1px solid #3a3a44;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem;
+  font-family: var(--mono); font-size: .75rem; color: #8d8d99; letter-spacing: .04em;
+}
+.runout a { color: #c4c4cc; }
+.credits ::selection { background: var(--yellow); color: var(--black); }
+
+.sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; --sleeve: min(calc(100vw - 2 * var(--gutter) - 12vw), 560px); gap: 3rem; }
+  .deck { margin-bottom: 1rem; }
+  .disc { transform: translateX(18%); animation-name: slide-sm; }
+  @keyframes slide-sm { from { transform: translateX(0); } to { transform: translateX(18%); } }
+  .sticker { right: auto; left: calc(var(--sleeve) * .42); top: auto; bottom: calc(var(--sleeve) * -.1); }
+  .pitch { padding-left: 0; padding-top: 2.5rem; max-width: 40rem; }
+  .sides { grid-template-columns: 1fr; }
+  .head { grid-template-columns: 1fr; }
+  .gear dl { grid-template-columns: 1fr; }
+  .bonus { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .bar nav a:not(.gh) { display: none; }
+  .sticker { left: 4%; right: 4%; width: auto; min-width: 0; top: calc(100% - .55rem); bottom: auto; transform: rotate(-2deg); }
+  .pitch { padding-top: 11.5rem; }
+  .side details > summary { grid-template-columns: 2.1rem 1fr 1.1rem; }
+  .side .by { grid-column: 2; grid-row: 2; text-align: left; margin-top: -.5rem; }
+  .side .chev { grid-column: 3; grid-row: 1; }
+  .note { padding-left: .25rem; }
+  .cmd { flex-direction: column; }
+  .copy { justify-content: center; padding: .6rem .75rem; }
+  .gear .row { grid-template-columns: 1fr auto; }
+  .gear dd { display: contents; }
+  .gear dd > * { grid-column: 1 / -1; }
+  .gear dd a.name { grid-column: 1; grid-row: 1; }
+  .gear dt { grid-column: 2; grid-row: 1; padding-top: .4rem; text-align: right; }
+  .sleeve .band { letter-spacing: .06em; }
+  .sleeve .foot { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .disc, .label { animation: none; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#tracklist">Skip to the tracklist</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M5 13l7 7 7-7"/></symbol>
+</svg>
+
+<header class="bar">
+  <a href="./" aria-label="cskwork/skills home">cskwork / skills</a>
+  <nav aria-label="Sections">
+    <a href="#tracklist">Tracklist</a>
+    <a href="#liner-notes">Liner notes</a>
+    <a href="#recorded-with">Recorded with</a>
+    <a href="#credits">Credits</a>
+    <a class="gh" href="https://github.com/cskwork/skills"><svg class="icon" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="deck">
+      <div class="disc" aria-hidden="true"><div class="label"><span>cskwork</span><span>Skills · Side A</span></div></div>
+      <div class="sleeve">
+        <p class="artist">cskwork <small>Daily rotation</small></p>
+        <h1 aria-label="cskwork/skills">Skills</h1>
+        <div class="band" aria-hidden="true"><span>14 tracks</span><span>1 system prompt</span><span>8 tools</span></div>
+        <div class="foot"><span>Claude Code · Codex · any agent</span><span>Sides A–D + bonus</span></div>
+      </div>
+      <div class="sticker">
+        <p>Installs every track you pick</p>
+        <div class="cmd">
+          <code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span></code>
+          <button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills" aria-label="Copy install command"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pitch">
+      <p class="lede">The skills, system prompt, and CLIs I run every day.</p>
+      <p>A working kit for Claude Code, Codex, and other coding agents. Pick the skills you want; the installer asks which agents to put them on.</p>
+      <p>Every track is credited to the person who wrote it, with the upstream commit it was copied from.</p>
+      <div class="actions">
+        <a class="btn primary" href="#tracklist"><svg class="icon" aria-hidden="true"><use href="#i-down"/></svg>See the tracklist</a>
+        <a class="btn" href="https://github.com/cskwork/skills"><svg class="icon" aria-hidden="true"><use href="#i-gh"/></svg>View on GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="tracklist" id="tracklist" aria-labelledby="tracklist-h">
+    <div class="head">
+      <h2 id="tracklist-h">Tracklist</h2>
+      <p>Open a track for its notes, its source, and a command that installs just that skill.</p>
+    </div>
+
+    <div class="sides" id="sides"><div class="col"><div class="side"><h3><span class="letter" aria-hidden="true">A</span>Side A · Engineering<small>7 tracks</small></h3><ol>
+<li><details><summary><span class="no">A1</span><span class="title">sdlc-kit</span><span class="by">cskwork<i>a53bad0</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Gated SDLC loop with human approvals: intent, spec, plan, build, ship, maintain.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/cskwork/sdlc-kit/commit/a53bad0">cskwork/sdlc-kit@a53bad0</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/sdlc-kit">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">sdlc-kit</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill sdlc-kit" aria-label="Copy install command for sdlc-kit"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A2</span><span class="title">verify</span><span class="by">cskwork<i>caf67b5</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Verify changed service behavior with replayable build, static-analysis, review, and HTTP scenario receipts.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/cskwork/verify-skill/commit/caf67b5">cskwork/verify-skill@caf67b5</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/verify">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">verify</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill verify" aria-label="Copy install command for verify"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A3</span><span class="title">db-intelligence</span><span class="by">cskwork<i>d678ccd</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>One skill for PostgreSQL, MySQL, SQLite, and MongoDB: detect the engine, connect credential-safe, read the schema, read before writing, never write to prod.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/cskwork/pi-setup-public/commit/d678ccd">cskwork/pi-setup-public@d678ccd</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/db-intelligence">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">db-intelligence</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill db-intelligence" aria-label="Copy install command for db-intelligence"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A4</span><span class="title">improve-codebase-architecture</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Find deepening opportunities, show them as an HTML report, then grill through the one you pick.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/improve-codebase-architecture">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">improve-codebase-architecture</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill improve-codebase-architecture" aria-label="Copy install command for improve-codebase-architecture"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A5</span><span class="title">prototype</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Build a throwaway prototype to answer a design question.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/prototype">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">prototype</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill prototype" aria-label="Copy install command for prototype"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A6</span><span class="title">retro</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Run a retrospective on a coding session.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/retro">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">retro</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill retro" aria-label="Copy install command for retro"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">A7</span><span class="title">jk</span><span class="by">Aviv Sinai &amp; co.<i>ed86f89</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Drive Jenkins from the terminal with the jk CLI: jobs, runs, logs, artifacts, credentials.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/avivsinai/jenkins-cli/commit/ed86f89">avivsinai/jenkins-cli@ed86f89</a><a href="https://github.com/cskwork/skills/tree/main/skills/engineering/jk">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">jk</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill jk" aria-label="Copy install command for jk"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+</ol></div></div><div class="col"><div class="side"><h3><span class="letter" aria-hidden="true">B</span>Side B · Productivity<small>4 tracks</small></h3><ol>
+<li><details><summary><span class="no">B1</span><span class="title">wait-what</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Stop. That last message did not land: re-pitch it.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/productivity/wait-what">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">wait-what</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill wait-what" aria-label="Copy install command for wait-what"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">B2</span><span class="title">handoff</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Compact the conversation into a handoff document for another agent to pick up.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/productivity/handoff">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">handoff</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill handoff" aria-label="Copy install command for handoff"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">B3</span><span class="title">writing-for-agents</span><span class="by">Matt Pocock<i>4588b32</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>How to write skills, AGENTS.md, and CLAUDE.md that agents follow.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/mattpocock/skills/commit/4588b32">mattpocock/skills@4588b32</a><a href="https://github.com/cskwork/skills/tree/main/skills/productivity/writing-for-agents">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">writing-for-agents</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill writing-for-agents" aria-label="Copy install command for writing-for-agents"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">B4</span><span class="title">ponytail</span><span class="by">DietrichGebert<i>b223500</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Lazy-senior-dev mode: the simplest, shortest solution that actually works.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/DietrichGebert/ponytail/commit/b223500">DietrichGebert/ponytail@b223500</a><a href="https://github.com/cskwork/skills/tree/main/skills/productivity/ponytail">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">ponytail</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill ponytail" aria-label="Copy install command for ponytail"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+</ol></div><div class="side"><h3><span class="letter" aria-hidden="true">C</span>Side C · Design<small>2 tracks</small></h3><ol>
+<li><details><summary><span class="no">C1</span><span class="title">impeccable</span><span class="by">pbakaus<i>ece38d9</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Design, critique, audit, and polish frontend interfaces.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/pbakaus/impeccable/commit/ece38d9">pbakaus/impeccable@ece38d9</a><a href="https://github.com/cskwork/skills/tree/main/skills/design/impeccable">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">impeccable</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill impeccable" aria-label="Copy install command for impeccable"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+<li><details><summary><span class="no">C2</span><span class="title">archify</span><span class="by">tt-a1i<i>73aaa06</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Architecture, sequence, data-flow, and state diagrams as explorable standalone HTML.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/tt-a1i/archify/commit/73aaa06">tt-a1i/archify@73aaa06</a><a href="https://github.com/cskwork/skills/tree/main/skills/design/archify">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">archify</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill archify" aria-label="Copy install command for archify"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+</ol></div><div class="side"><h3><span class="letter" aria-hidden="true">D</span>Side D · Agents<small>1 track</small></h3><ol>
+<li><details><summary><span class="no">D1</span><span class="title">call-agent</span><span class="by">cskwork<i>929c15b</i></span><svg class="chev" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="note"><p>Hand a bounded task to a peer CLI: Codex, Claude, Antigravity, Kiro, NotebookLM, ChatGPT Pro.</p><div class="matrix"><span>Matrix</span><a href="https://github.com/cskwork/call-agent/commit/929c15b">cskwork/call-agent@929c15b</a><a href="https://github.com/cskwork/skills/tree/main/skills/agents/call-agent">Read SKILL.md</a></div><div class="cmd"><code><span class="t">npx</span> <span class="t">skills@latest</span> <span class="t">add</span> <span class="t">cskwork/skills</span> <span class="t">--skill</span> <span class="t">call-agent</span></code><button class="copy" type="button" data-copy="npx skills@latest add cskwork/skills --skill call-agent" aria-label="Copy install command for call-agent"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div></div></details></li>
+</ol></div></div></div>
+
+    <div class="bonus">
+      <div>
+        <h3>Bonus tracks</h3>
+        <p>Available separately. These ship with an app or a machine setup, so install them from their own home.</p>
+      </div>
+      <dl>
+        <div>
+          <dt><a href="https://github.com/citrolabs/ego-lite">ego-browser</a></dt>
+          <dd>
+            <p>A browser for agents that shares your logged-in sessions. Comes with the ego lite app; by citrolabs.</p>
+            <div class="cmd"><code><span class="t">npx</span> <span class="t">skills</span> <span class="t">add</span> <span class="t">citrolabs/ego-lite</span></code><button class="copy" type="button" data-copy="npx skills add citrolabs/ego-lite" aria-label="Copy ego-browser install command"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+          </dd>
+        </div>
+        <div>
+          <dt><a href="https://github.com/cskwork/hindsight-agent-setup">hindsight</a></dt>
+          <dd>
+            <p>One shared long-term memory for Claude Code, Codex, and Hermes. By cskwork.</p>
+            <div class="cmd"><code><span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://raw.githubusercontent.com</span>/<wbr><span class="t">cskwork</span>/<wbr><span class="t">hindsight-agent-setup</span>/<wbr><span class="t">main</span>/<wbr><span class="t">bootstrap.sh</span> <span class="t">|</span> <span class="t">bash</span></code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/cskwork/hindsight-agent-setup/main/bootstrap.sh | bash" aria-label="Copy hindsight install command"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="liner" id="liner-notes" aria-labelledby="liner-h">
+    <div class="head">
+      <h2 id="liner-h">Liner notes</h2>
+      <p>The system prompt every agent gets: <a href="https://github.com/cskwork/skills/blob/main/system-prompt/AGENTS.md">system-prompt/AGENTS.md</a>, printed here in full.</p>
+    </div>
+    <blockquote>Use the simplest existing solution that meets the current requirement.</blockquote>
+    <div class="essay">
+      <p>Explore the relevant context first. Before implementing a new task, restate the intended outcome, scope, and success check, point out where the request conflicts with the code or data, include any questions that change the work, and wait for the user's agreement; for small, reversible changes with clear intent, state your reading and proceed. After agreement, finish implementation, verification, and delivery without check-ins: do not end a turn by announcing the next step, offering to continue, or listing decisions that block nothing. Give status and recommendations in the same message as the next action. Stop early only when nothing can move without the user, a protected resource blocks you, the agreed scope must materially change, or a step would cause data loss, public API changes, security consequences, or an unapproved migration. Merge or publish only when authorized.</p>
+      <p>Use the simplest existing solution that meets the current requirement; add complexity only for a demonstrated gap. Follow local patterns, keep failures explicit, and preserve compatibility and unrelated work. Fix root causes; never weaken, skip, or delete checks to make them pass.</p>
+      <p>Ground decisions in code, real data, and authoritative sources, including related ones the request does not name; challenge claims the evidence contradicts. Verify changed behavior, failure cases, and delivery with existing tests first; add focused coverage only for real gaps. Stop when checks pass and the outcome is met. If a check fails or you are blocked, say so with the evidence and what remains.</p>
+      <p>Delegate with the least expensive model and reasoning level that meets the task's quality bar; use the default in rules.md, or <code>claude-opus-5-5</code> at medium reasoning if none is set. Run one delegate at a time unless parallelism reduces total work. Give each delegate a clean context: objective, paths, constraints, acceptance criteria, verified findings. Keep the coordinator on orchestration. Avoid polling and idle work.</p>
+      <p>Write to the user for a non-technical reader with limited attention: answer in the first sentence, then say the least that fully answers, in short paragraphs with only the decision or warning in bold. Never cut a warning, exact number, or condition the user needs to act on. Leave out code, data, and technical evidence; name what you hold back, and give it, or the full explanation, when asked. Return requested artifacts alone. Ask one question at a time, blocking question last. Report out-of-scope problems as recommendations; do not fix them unasked. When history matters, state who changed what and when, citing commits or tickets per environment; say "unknown" rather than infer.</p>
+      <p>Read repository instructions and <code>~/.agents/rules/rules.md</code> when present.</p>
+    </div>
+    <div class="signoff">
+      <span class="who">— cskwork · from <a href="https://github.com/cskwork/THE-SYSTEM-PROMPT">THE-SYSTEM-PROMPT</a></span>
+      <div class="cmd">
+        <code><span class="t">mkdir</span> <span class="t">-p</span> <span class="t">~/.agents</span> <span class="t">&amp;&amp;</span> <span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://raw.githubusercontent.com</span>/<wbr><span class="t">cskwork</span>/<wbr><span class="t">skills</span>/<wbr><span class="t">main</span>/<wbr><span class="t">system-prompt</span>/<wbr><span class="t">AGENTS.md</span> <span class="t">-o</span> <span class="t">~</span>/<wbr><span class="t">.agents</span>/<wbr><span class="t">AGENTS.md</span></code>
+        <button class="copy" type="button" data-copy="mkdir -p ~/.agents &amp;&amp; curl -fsSL https://raw.githubusercontent.com/cskwork/skills/main/system-prompt/AGENTS.md -o ~/.agents/AGENTS.md" aria-label="Copy system prompt install command"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="gear" id="recorded-with" aria-labelledby="gear-h">
+    <div class="head">
+      <h2 id="gear-h">Recorded with</h2>
+      <p>The CLIs around the agents. Install commands come from each project's README; check upstream before you run one.</p>
+    </div>
+    <dl>
+      <div class="row"><dt>Status line</dt><dd><a class="name" href="https://github.com/jarrodwatts/claude-hud">claude-hud</a><p>Context usage, active tools, running agents, and todos in Claude Code's status line.</p><code><span class="t">claude</span> <span class="t">plugin</span> <span class="t">install</span> <span class="t">claude-hud@claude-hud</span></code></dd></div>
+      <div class="row"><dt>Accounts</dt><dd><a class="name" href="https://github.com/realiti4/claude-swap">claude-swap</a><p>Switch Claude Code accounts, with rate-limit rotation and a usage dashboard.</p><code><span class="t">uv</span> <span class="t">tool</span> <span class="t">install</span> <span class="t">claude-swap</span></code></dd></div>
+      <div class="row"><dt>Accounts</dt><dd><a class="name" href="https://github.com/Loongphy/codex-auth">codex-auth</a><p>Switch and manage Codex CLI accounts.</p><code><span class="t">npm</span> <span class="t">install</span> <span class="t">-g</span> <span class="t">@loongphy/codex-auth</span></code></dd></div>
+      <div class="row"><dt>Deploy</dt><dd><a class="name" href="https://github.com/firebase/firebase-tools">firebase</a><p>Firebase command-line tools: deploys, emulators, project config.</p><code><span class="t">npm</span> <span class="t">install</span> <span class="t">-g</span> <span class="t">firebase-tools</span></code></dd></div>
+      <div class="row"><dt>Workspace</dt><dd><a class="name" href="https://github.com/googleworkspace/cli">gws</a><p>Google Workspace from the terminal: Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin.</p><code><span class="t">brew</span> <span class="t">install</span> <span class="t">googleworkspace-cli</span></code></dd></div>
+      <div class="row"><dt>Runtime</dt><dd><a class="name" href="https://github.com/herdrdev/herdr">herdr</a><p>Terminal workspace manager and runtime for coding agents.</p><code><span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://herdr.dev</span>/<wbr><span class="t">install.sh</span> <span class="t">|</span> <span class="t">sh</span></code></dd></div>
+      <div class="row"><dt>Agent</dt><dd><a class="name" href="https://github.com/NousResearch/hermes-agent">hermes</a><p>Nous Research's self-improving agent: it writes skills from experience and keeps its own memory.</p><code><span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://hermes-agent.nousresearch.com</span>/<wbr><span class="t">install.sh</span> <span class="t">|</span> <span class="t">bash</span></code></dd></div>
+      <div class="row"><dt>CI</dt><dd><a class="name" href="https://github.com/avivsinai/jenkins-cli">jk</a><p>GitHub-style CLI for Jenkins: contexts, runs, logs, admin. Pairs with track A7.</p><code><span class="t">brew</span> <span class="t">install</span> <span class="t">avivsinai</span>/<wbr><span class="t">tap</span>/<wbr><span class="t">jk</span></code></dd></div>
+    </dl>
+  </section>
+
+  <section class="credits" id="credits" aria-labelledby="credits-h">
+    <div class="head">
+      <h2 id="credits-h">Credits</h2>
+      <p>Borrowed skills keep their own license file in their folder. Sources and exact commits: <a href="https://github.com/cskwork/skills/blob/main/THIRD_PARTY.md">THIRD_PARTY.md</a>.</p>
+    </div>
+    <dl class="credit-list">
+      <div><dt><a href="https://github.com/mattpocock/skills">Matt Pocock</a></dt><dd>improve-codebase-architecture, prototype, retro, wait-what, handoff, writing-for-agents<span class="lic">MIT · mattpocock/skills@4588b32</span></dd></div>
+      <div><dt><a href="https://github.com/cskwork">cskwork</a></dt><dd>sdlc-kit, verify, db-intelligence, call-agent, the system prompt, hindsight setup<span class="lic">MIT · this repository</span></dd></div>
+      <div><dt><a href="https://github.com/pbakaus/impeccable">pbakaus</a></dt><dd>impeccable, which also designed this page<span class="lic">Apache-2.0 · impeccable@ece38d9</span></dd></div>
+      <div><dt><a href="https://github.com/tt-a1i/archify">tt-a1i</a></dt><dd>archify<span class="lic">MIT · archify@73aaa06</span></dd></div>
+      <div><dt><a href="https://github.com/DietrichGebert/ponytail">DietrichGebert</a></dt><dd>ponytail<span class="lic">MIT · ponytail@b223500</span></dd></div>
+      <div><dt><a href="https://github.com/avivsinai/jenkins-cli">Aviv Sinai &amp; contributors</a></dt><dd>jk<span class="lic">MIT · jenkins-cli@ed86f89</span></dd></div>
+    </dl>
+    <div class="runout">
+      <span>Copied from upstream 2026-10-05 · upstream stays the source of truth</span>
+      <span>Set in <a href="https://github.com/Omnibus-Type/Archivo">Archivo</a> (OFL) · © cskwork, MIT</span>
+    </div>
+  </section>
+</main>
+
+<div class="sr-live" aria-live="polite" id="live"></div>
+
+<script>
+const live = document.getElementById("live");
+const el = (tag) => document.createElement(tag);
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const t = el("textarea"); t.value = text; t.setAttribute("readonly", ""); t.style.position = "absolute"; t.style.left = "-9999px";
+    document.body.append(t); t.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    t.remove(); return ok;
+  }
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".copy");
+  if (!b) return;
+  const ok = await copyText(b.dataset.copy);
+  const label = b.querySelector("span");
+  const use = b.querySelector("use");
+  b.dataset.state = ok ? "done" : "fail";
+  label.textContent = ok ? "Copied" : "Select it";
+  use.setAttribute("href", ok ? "#i-check" : "#i-copy");
+  live.textContent = ok ? "Command copied to clipboard." : "Copy failed. Select the command and copy it by hand.";
+  if (!ok) { const r = document.createRange(); r.selectNodeContents(b.previousElementSibling); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  clearTimeout(b._t);
+  b._t = setTimeout(() => { b.dataset.state = ""; label.textContent = "Copy"; use.setAttribute("href", "#i-copy"); }, 1800);
+});
+</script>
+</body>
+</html>
