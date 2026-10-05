@@ -29,7 +29,7 @@ A personal, working daily kit rather than a catalog: one operating contract (AGE
 - 16 installable skills in four groups: engineering, productivity, design, agents.
 - 3 skills from their own home: verify (Claude Code's bundled `/verify`), ego-browser (ego lite app), and hindsight (hindsight-agent-setup).
 - System prompt: `system-prompt/AGENTS.md`, source of truth cskwork/THE-SYSTEM-PROMPT.
-- Toolkit: claude-hud, claude-swap, codex-auth, firebase, gws, herdr, hermes, jk.
+- Toolkit: blast-radius, claude-swap, codex-auth, firebase, gws, herdr, hermes, jk.
 - Third-party skills keep their own license; sources and commits are listed in THIRD_PARTY.md.
 
 ## Brand Commitments
