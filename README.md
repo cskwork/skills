@@ -59,6 +59,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | Skill | What it does | Source |
 | --- | --- | --- |
 | [impeccable](skills/design/impeccable) | Design, critique, audit, and polish frontend interfaces. | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
+| [gpt-image-2](skills/design/gpt-image-2) | Generate and edit images with ChatGPT's current image model through your ChatGPT plan and the Codex CLI. Model-agnostic: follows whatever model Codex uses. | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (modified) |
 | [archify](skills/design/archify) | Architecture, sequence, data-flow, and state diagrams as explorable standalone HTML. | [tt-a1i/archify](https://github.com/tt-a1i/archify) |
 
 ### Agents

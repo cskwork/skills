@@ -13,6 +13,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/productivity/ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | `b223500` | MIT, © 2026 DietrichGebert |
 | `skills/design/impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) (`plugin/skills/impeccable`, v4.5.0) | `ece38d9` | Apache-2.0, see `NOTICE.md` |
 | `skills/design/archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | `73aaa06` | MIT, © 2026 tt-a1i |
+| `skills/design/gpt-image-2` | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (`gpt-image-2/`), modified: feature flag enabled only when off, saved-image fallback, model-agnostic triggers | `18d6100` | MIT, © 2026 agentspace-so |
 | `skills/engineering/jk` | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) | `ed86f89` | MIT, © 2025 Aviv Sinai and contributors |
 
 My own skills, copied from their home repositories:
