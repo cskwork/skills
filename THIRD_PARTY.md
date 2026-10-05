@@ -20,7 +20,6 @@ My own skills, copied from their home repositories:
 | Folder | Upstream | Commit |
 | --- | --- | --- |
 | `skills/engineering/sdlc-kit` | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) | `a53bad0` |
-| `skills/engineering/verify` | [cskwork/verify-skill](https://github.com/cskwork/verify-skill) | `caf67b5` |
 | `skills/agents/call-agent` | [cskwork/call-agent](https://github.com/cskwork/call-agent) | `929c15b` |
 | `skills/engineering/db-intelligence` | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) | `d678ccd` |
 | `system-prompt/AGENTS.md` | [cskwork/THE-SYSTEM-PROMPT](https://github.com/cskwork/THE-SYSTEM-PROMPT) | `8f1551f` |

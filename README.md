@@ -38,7 +38,6 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | Skill | What it does | Source |
 | --- | --- | --- |
 | [sdlc-kit](skills/engineering/sdlc-kit) | Gated SDLC loop (intent → spec → plan → build → ship → maintain) with human approvals. | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) |
-| [verify](skills/engineering/verify) | Verify changed service behavior with replayable build, static-analysis, review, and HTTP scenario receipts. | [cskwork/verify-skill](https://github.com/cskwork/verify-skill) |
 | [db-intelligence](skills/engineering/db-intelligence) | One skill for PostgreSQL, MySQL, SQLite, and MongoDB: detect the engine, connect credential-safe, read schema, read before writing, never write to prod. | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) |
 | [improve-codebase-architecture](skills/engineering/improve-codebase-architecture) | Find deepening opportunities, show them as an HTML report, then grill through the one you pick. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [prototype](skills/engineering/prototype) | Build a throwaway prototype to answer a design question. | [mattpocock/skills](https://github.com/mattpocock/skills) |
@@ -69,10 +68,11 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 
 ### Installed from their own home
 
-These skills are tied to an app or a machine setup, so install them from upstream instead of copying them here.
+These skills ship with a tool or a machine setup, so get them from their own home instead of copying them here.
 
 | Skill | What it does | Install |
 | --- | --- | --- |
+| verify | Claude Code's own `/verify`: builds and runs your app to confirm a change does what it should. | Comes with Claude Code (v2.1.200+). Type `/verify`. |
 | ego-browser | Browser for agents that shares your logged-in sessions ([ego-lite](https://github.com/citrolabs/ego-lite)). | Install the ego lite app, or `npx skills add citrolabs/ego-lite` |
 | hindsight | Shared long-term memory for Claude Code, Codex, and Hermes ([hindsight-agent-setup](https://github.com/cskwork/hindsight-agent-setup)). | `curl -fsSL https://raw.githubusercontent.com/cskwork/hindsight-agent-setup/main/bootstrap.sh \| bash` |
 
