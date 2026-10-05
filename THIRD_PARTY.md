@@ -24,4 +24,6 @@ My own skills, copied from their home repositories:
 | `skills/engineering/db-intelligence` | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) | `d678ccd` |
 | `system-prompt/AGENTS.md` | [cskwork/THE-SYSTEM-PROMPT](https://github.com/cskwork/THE-SYSTEM-PROMPT) | `8f1551f` |
 
+`skills/engineering/verify-app` is written in this repository.
+
 Upstream repositories stay the source of truth. To refresh a copy, re-copy the folder from the upstream's latest commit and update this table.

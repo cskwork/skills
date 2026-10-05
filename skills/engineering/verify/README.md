@@ -5,6 +5,10 @@ I use Claude Code's bundled `/verify`. It builds and runs your app to confirm a 
 - **Get it:** it ships with Claude Code v2.1.200 and later. Type `/verify` in a session. Nothing to install.
 - **Docs:** [Run and verify your app](https://code.claude.com/docs/en/skills#run-and-verify-your-app)
 
+## Codex and other agents
+
+Codex has no built-in verify. Use [`verify-app`](../verify-app), which does the same job under a different name, so it never replaces Claude Code's `/verify`.
+
 ## Why this folder has no SKILL.md
 
 - **It would replace the real one.** Claude Code lets a personal or project skill with the same name replace a bundled skill. A `verify/SKILL.md` installed from here would shadow the built-in `/verify`.
