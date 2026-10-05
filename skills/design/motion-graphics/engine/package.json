@@ -1,0 +1,9 @@
+{
+  "name": "motion-graphics-engine",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic HTML motion-graphics renderer (Playwright + ffmpeg).",
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

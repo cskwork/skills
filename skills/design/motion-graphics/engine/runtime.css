@@ -1,0 +1,47 @@
+/* Base stage for motion compositions. Declare fonts in the composition with
+   @font-face pointing at local files you are licensed to use. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: var(--W, 1080px);
+  height: var(--H, 1920px);
+  overflow: hidden;
+  background: #0b0d12;
+  color: #f5f3ee;
+  font-family: -apple-system, "SF Pro Display", "Inter", "Pretendard", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+  word-break: keep-all;
+}
+.mg-ch { display: inline-block; will-change: transform, opacity; }
+.mg-layer { position: absolute; inset: 0; }
+.mg-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+
+/* Default caption for narrated vertical compositions: above the bottom UI block. */
+.mg-caption {
+  position: absolute;
+  left: 60px;
+  right: 200px;
+  bottom: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 58px;
+  line-height: 1.18;
+  z-index: 50;
+}
+.mg-caption span {
+  padding: 4px 16px;
+  background: rgba(8, 9, 12, 0.72);
+  border-radius: 10px;
+}
+
+.mg-guides > div {
+  position: absolute;
+  background: rgba(255, 0, 80, 0.22);
+  outline: 2px dashed rgba(255, 0, 80, 0.8);
+  z-index: 999;
+  pointer-events: none;
+}
