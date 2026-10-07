@@ -24,6 +24,7 @@ My own skills, copied from their home repositories:
 | `skills/agents/call-agent` | [cskwork/call-agent](https://github.com/cskwork/call-agent) | `929c15b` |
 | `skills/design/motion-graphics` | [cskwork/motion-graphics-skill](https://github.com/cskwork/motion-graphics-skill) | `0a2091d` |
 | `skills/engineering/db-intelligence` | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) | `d678ccd` |
+| `skills/engineering/sql-walkthrough` | [cskwork/sql-walkthrough](https://github.com/cskwork/sql-walkthrough) | `10ac9c7` |
 | `system-prompt/AGENTS.md` | [cskwork/THE-SYSTEM-PROMPT](https://github.com/cskwork/THE-SYSTEM-PROMPT) | `8f1551f` |
 
 `skills/engineering/verify-app` is written in this repository.
