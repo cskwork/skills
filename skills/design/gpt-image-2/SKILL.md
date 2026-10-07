@@ -65,7 +65,24 @@ bash scripts/gen.sh \
   --out <absolute/path/to/output.png>
 ```
 
-Optional: `--timeout-sec 300` (default 300).
+Optional: `--timeout-sec 300` (default 300). One image takes about 1–2.5 min.
+
+## Parallel / batch
+
+Each `gen.sh` call reads only its own Codex session, so calls can run concurrently. For several images, write a JSONL file (one job per line; `refs` optional) and run:
+
+```bash
+python3 scripts/batch.py jobs.jsonl --workers 3
+```
+
+```json
+{"prompt": "<prompt>", "out": "/abs/out-1.png", "refs": ["/abs/ref.png"]}
+```
+
+- Skips jobs whose `out` already exists, so re-running resumes a stopped batch.
+- Stops starting new jobs on a quota/rate-limit hit (exit 9). Exit 1 if any job failed.
+- Default and verified: 3 workers. All workers share one plan quota.
+- A job that uses another job's output as `--ref` must run in a later batch.
 
 ## Default behavior
 
@@ -97,19 +114,24 @@ This skill does **not** grant image-generation capability on its own. It exposes
 | 3    | `codex` or `python3` CLI missing |
 | 4    | `--ref` file does not exist |
 | 5    | `codex exec` failed (auth? network? model?) |
-| 6    | no new session file detected |
-| 7    | imagegen did not produce an image payload (feature not enabled, quota, or capability refused) |
+| 6    | no session rollout found for this run |
+| 7    | imagegen did not produce an image payload (feature not enabled, or the agent never called the tool) |
+| 8    | refused by the image tool's content policy; the prompt was not softened |
+| 9    | ChatGPT/Codex usage limit, quota or rate limit hit |
 
-On failure, name the layer in one sentence instead of dumping the full stderr at the user.
+On failure, name the layer in one sentence instead of dumping the full stderr at the user. On 8, tell the user it was refused and ask how to rephrase; do not soften it yourself unless asked. On 9, stop and tell the user the plan limit was hit.
+
+On success, stderr may show `image tool received a rewritten prompt:` with the prompt the tool actually got. If it changed the meaning (not just wording), tell the user.
 
 ## How it works
 
 The `codex` CLI reuses the logged-in ChatGPT session and exposes an `imagegen` tool (gated behind the `image_generation` feature flag). The script:
 
-1. snapshots `~/.codex/sessions/` before the run
-2. runs `codex exec --sandbox read-only ...` (adding `--enable image_generation` only if the feature is off, and `-i <file>` for each reference image)
-3. diffs the sessions directory, then invokes `scripts/extract_image.py` to scan every new rollout JSONL for a base64 image payload (PNG / JPEG / WebP magic-header match)
-4. decodes the largest matching blob and writes it to `--out`; if the rollout holds no image payload, it copies the largest image Codex saved for that same session under `~/.codex/generated_images/<session-id>/` instead
+1. runs `codex exec --json --sandbox read-only ...` (adding `--enable image_generation` only if the feature is off, and `-i <file>` for each reference image), with an instruction not to soften or retry a refused prompt
+2. reads the `thread.started` event's `thread_id` from stdout and opens only `~/.codex/sessions/**/rollout-*<thread_id>.jsonl`
+3. `scripts/extract_image.py` takes the last `image_gen.generation` item with `status: completed`; its `result` is the base64 image and `revisedPrompt` is what the tool received. A `failed` item means refused (exit 8).
+4. fallbacks, in order: largest base64 image blob in the rollout (only when it has no `image_gen.generation` item, since with `--ref` the largest blob can be the reference), then the largest image under `~/.codex/generated_images/<thread_id>/`
+5. quota/rate-limit text in stderr or in `error` / `turn.failed` events → exit 9
 
 Model-agnostic by design: the script never names an image model. It calls whatever model the Codex `imagegen` tool uses, so a newer ChatGPT image model works without changes here.
 
@@ -122,11 +144,19 @@ Two non-obvious flags other wrappers get wrong:
 
 The script is narrowly scoped on purpose:
 
-- It reads **only** session rollout files created by its own `codex exec` invocation, and, as a fallback, only the `~/.codex/generated_images/<session-id>/` folders of those same sessions. The sessions directory is snapshotted before the call and diffed after, so any prior `~/.codex/sessions/*` files (which may contain unrelated Codex conversations) are never touched, read, or transmitted.
+- It reads **only** the session rollout of its own `codex exec` invocation, matched by thread id, and, as a fallback, only that session's `~/.codex/generated_images/<thread_id>/` folder. Other `~/.codex/sessions/*` files (which may contain unrelated Codex conversations) are never read or transmitted.
 - It writes only two kinds of file: the output PNG at the caller's `--out` path, and short-lived `mktemp` logs that are auto-deleted on exit via a trap.
 - No environment variables are read. No credentials are requested. No other paths under `~/.codex/` are accessed (apart from running `codex features list`).
 - No network calls leave this skill. The only outbound traffic is the one made by the `codex` CLI itself (to OpenAI, using the user's existing ChatGPT login) — this skill does not add endpoints, telemetry, or callbacks.
 
 ## What this skill is not
 
-Not a direct OpenAI API client. Not a capability grant — it depends on the user's working Codex CLI login. Not a multi-tenant service (one call per invocation; concurrent calls are serialized by the filesystem-snapshot diff).
+Not a direct OpenAI API client. Not a capability grant — it depends on the user's working Codex CLI login. Not a multi-tenant service: one image per invocation; concurrent invocations are isolated by thread id but share the user's plan quota.
+
+## Lessons
+
+Verified on codex-cli 0.160.1, 2026-10-07.
+
+- **Silent softening.** When the image tool refuses, the Codex agent by default retries with its own sanitized prompt (e.g. "blood spatter" became "no fresh blood") and reports success. `gen.sh` forbids the retry and returns exit 8; a refused-then-retried image still prints a warning.
+- **Policy calibration (horror art).** Accepted: "weapons smeared with dark red blood, crimson spatter on face/collar/hands, a few drops on the ground". Refused: blood "dripping", "running down", "pooling", "soaked".
+- **Size and time.** A 4:5 request came back 1122x1402; about 1–2.5 min per image. Pixel size is not exact; resize afterwards if it matters.

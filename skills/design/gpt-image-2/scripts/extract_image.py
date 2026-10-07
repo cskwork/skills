@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Extract a generated image from a Codex CLI session rollout JSONL."""
+"""Extract a generated image from a Codex CLI session rollout JSONL.
+
+Usage: extract_image.py <out_path> <thread_id> <request_prompt_file>
+
+Reads only ~/.codex/sessions/**/rollout-*<thread_id>.jsonl (this run's own
+session), so concurrent runs never read each other's output.
+
+Exit codes: 0 written, 1 no image, 2 bad args/output path, 3 refused by the
+image tool's content policy, 4 no rollout for this thread id.
+"""
 
 from __future__ import annotations
 
@@ -19,8 +28,50 @@ MIN_BLOB_LENGTH = 200
 BASE64_BLOB_PATTERN = re.compile(r'"([A-Za-z0-9+/=]{' + str(MIN_BLOB_LENGTH) + r',})"')
 
 
+SESSIONS_ROOT = pathlib.Path.home() / ".codex" / "sessions"
+THREAD_ID_PATTERN = re.compile(r"^[0-9A-Za-z-]{8,}$")
+
+
+def find_rollouts(thread_id: str) -> list[pathlib.Path]:
+    """Return the session rollout file(s) of exactly this thread."""
+    return sorted(SESSIONS_ROOT.glob(f"**/rollout-*{thread_id}.jsonl"))
+
+
+def find_generation(session_paths: list[pathlib.Path]) -> tuple[str | None, str | None, bool, bool]:
+    """Read image tool items: (last completed base64, revised prompt, refused, seen).
+
+    Items with payload.item.kind == "image_gen.generation" carry the output in
+    item.result (status "completed") and the prompt the tool actually received
+    in item.revisedPrompt. A "failed" item is a content-policy refusal.
+    """
+    image, revised, refused, seen = None, None, False, False
+    for session_path in session_paths:
+        try:
+            text = session_path.read_text(errors="replace")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            try:
+                item = json.loads(line).get("payload", {}).get("item", {})
+            except (ValueError, AttributeError):
+                continue
+            if not isinstance(item, dict) or item.get("kind") != "image_gen.generation":
+                continue
+            seen = True
+            revised = item.get("revisedPrompt") or revised
+            if item.get("status") == "completed" and item.get("result"):
+                image = item["result"]
+            elif item.get("status") == "failed":
+                refused = True
+    return image, revised, refused, seen
+
+
 def find_best_image_blob(session_paths: list[pathlib.Path]) -> tuple[str, str] | None:
-    """Return the largest (base64, ext) image payload found across given files."""
+    """Fallback: largest (base64, ext) image payload in the files.
+
+    Used only when the rollout has no image_gen.generation item (older CLI).
+    With --ref this can match the attached reference, hence fallback only.
+    """
     best: tuple[str, str, int] | None = None
     for session_path in session_paths:
         try:
@@ -110,9 +161,9 @@ def validate_output_path(raw_out: str) -> pathlib.Path:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
+    if len(argv) != 4:
         print(
-            "usage: extract_image.py <out_path> <sessions_list_file>",
+            "usage: extract_image.py <out_path> <thread_id> <request_prompt_file>",
             file=sys.stderr,
         )
         return 2
@@ -123,22 +174,39 @@ def main(argv: list[str]) -> int:
         print(f"invalid output path: {err}", file=sys.stderr)
         return 2
 
-    sessions_list_path = pathlib.Path(argv[2])
-    session_paths = [
-        pathlib.Path(line)
-        for line in sessions_list_path.read_text().splitlines()
-        if line.strip()
-    ]
+    thread_id = argv[2]
+    if not THREAD_ID_PATTERN.match(thread_id):
+        print(f"invalid thread id: {thread_id!r}", file=sys.stderr)
+        return 2
+    request = pathlib.Path(argv[3]).read_text(errors="replace").strip()
 
-    result = find_best_image_blob(session_paths)
-    if result is not None:
-        image_bytes = base64.b64decode(result[0])
+    session_paths = find_rollouts(thread_id)
+    if not session_paths:
+        print(f"NO_ROLLOUT_FOR_THREAD {thread_id}", file=sys.stderr)
+        return 4
+
+    image_b64, revised, refused, seen = find_generation(session_paths)
+    if revised and revised.strip() != request:
+        print(f"image tool received a rewritten prompt:\n{revised}", file=sys.stderr)
+
+    if image_b64 is not None and refused:
+        print("warning: the image tool refused a prompt first; this image came "
+              "from a retried prompt (see above)", file=sys.stderr)
+    if image_b64 is not None:
+        image_bytes = base64.b64decode(image_b64)
+    elif refused:
+        print("REFUSED_BY_IMAGE_POLICY", file=sys.stderr)
+        return 3
     else:
-        saved = find_saved_image_file(session_paths)
-        if saved is None:
-            print("IMAGE_NOT_FOUND_IN_SESSION", file=sys.stderr)
-            return 1
-        image_bytes = saved.read_bytes()
+        blob = None if seen else find_best_image_blob(session_paths)
+        if blob is not None:
+            image_bytes = base64.b64decode(blob[0])
+        else:
+            saved = find_saved_image_file(session_paths)
+            if saved is None:
+                print("IMAGE_NOT_FOUND_IN_SESSION", file=sys.stderr)
+                return 1
+            image_bytes = saved.read_bytes()
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(image_bytes)
