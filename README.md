@@ -40,6 +40,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [sdlc-kit](skills/engineering/sdlc-kit) | Gated SDLC loop (intent → spec → plan → build → ship → maintain) with human approvals. | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) |
 | [verify-app](skills/engineering/verify-app) | Build and run the app to prove a change works end to end. For agents without a built-in verify, such as Codex. | this repo |
 | [db-intelligence](skills/engineering/db-intelligence) | One skill for PostgreSQL, MySQL, SQLite, and MongoDB: detect the engine, connect credential-safe, read schema, read before writing, never write to prod. | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) |
+| [sql-walkthrough](skills/engineering/sql-walkthrough) | Explain SQL/batch logic to a non-expert: numbered source lines, the real rows they read, per-line arithmetic, a results table, and an executed counter-example. | [cskwork/sql-walkthrough](https://github.com/cskwork/sql-walkthrough) |
 | [improve-codebase-architecture](skills/engineering/improve-codebase-architecture) | Find deepening opportunities, show them as an HTML report, then grill through the one you pick. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [prototype](skills/engineering/prototype) | Build a throwaway prototype to answer a design question. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [retro](skills/engineering/retro) | Run a retrospective on a coding session. | [mattpocock/skills](https://github.com/mattpocock/skills) |
