@@ -1,0 +1,47 @@
+# Bind contract/observe/assert values to real project hooks before execution.
+# These are definitions, not executable predicates or a provided runner.
+invariants:
+  - id: O-1
+    contract: runtime-must-be-error-free
+    observe: process-status-runtime-logs-and-final-report
+    cadence: continuous-and-exit
+    assert: no-errors-no-crash-final-report-present
+  - id: O-2
+    contract: enabled-valid-command-accepted-once
+    observe: pre-input-eligibility-and-correlated-command-result
+    cadence: every-action-and-result
+    assert: first-attempt-accepted-or-predeclared-invalid-input-contract
+  - id: O-3
+    contract: phase-actions-follow-presentation-readiness
+    observe: phase-open-screen-ready-bot-action-human-deadline
+    cadence: every-event-and-render-frame
+    assert: no-pre-ready-bot-action-and-full-human-window
+  - id: O-4
+    contract: project-safe-area-hit-size-and-modal-policy
+    observe: visible-hit-regions-in-one-coordinate-system
+    cadence: every-render-frame-and-resize
+    assert: contained-sized-and-no-unintended-interactive-overlap
+  - id: O-5
+    contract: domain-bounds-and-entity-lifecycle
+    observe: balances-hp-entity-ledger-and-visible-entity-set
+    cadence: every-tick-event-and-action
+    assert: documented-bounds-unique-ids-and-event-explained-removals
+  - id: O-6
+    contract: equal-logical-inputs-yield-equal-state
+    observe: canonical-state-hash-at-fixed-ticks
+    cadence: each-replay-checkpoint
+    assert: equal-hashes-for-same-build-rules-fixture-seeds-actions-and-timing
+  - id: O-7
+    contract: phase-specific-progress-deadline
+    observe: progress-token-active-time-and-external-wall-watchdog
+    cadence: every-step-and-watchdog-interval
+    assert: meaningful-progress-or-contractual-wait-with-resume-deadline
+  - id: O-8
+    contract: save-eligibility-roundtrip-and-visible-reconstruction
+    observe: pre-save-post-load-state-first-command-and-continue-eligibility
+    cadence: every-save-load-checkpoint-and-terminal-boundary
+    assert: eligible-state-restored-and-ineligible-save-not-resurrected
+self_check:
+  fixture_scope: harness-owned-only
+  per_oracle: one-controlled-violation
+  required: correct-id-values-failure-bundle-and-nonzero-exit
