@@ -34,6 +34,8 @@ Source keys in `[brackets]` resolve in `references.md`. `[Field]` = lesson from 
 
 **L-15 Orientation.** If the app supports rotation, every screen works in both. If locked (common for games), lock deliberately and still respect L-1 on both landscape sides (the island can be left or right). `[HIG-Games]`
 
+**L-16 iPhone-only still means iPad (floor).** App Review installs iPhone-only apps on iPad and reviews them in iPhone compatibility mode (a scaled iPhone-size window inside the iPad screen), and rejects under Guideline 4 (Design) if the UI is "crowded, laid out, or displayed in a way that made it difficult to use". Treat that window as a supported size: run the shipped build on an iPad simulator (e.g. iPad Pro 11-inch) in compatibility mode, record the viewport, scale and safe-area insets the app actually receives there, and pass every floor rule (L-1, L-9, L-10, T-1, TY-1) at that size. Engines that compute their own canvas scale (Godot, Unity, web canvas) are most at risk: they can pick a different scale or aspect in the compatibility window than on any phone. If the app is universal, design the regular-width layout explicitly instead. `[AppReview-4]` `[Field]`
+
 ## Anti-patterns
 
 - Layout built at Pro Max size and scaled down.
@@ -41,3 +43,4 @@ Source keys in `[brackets]` resolve in `references.md`. `[Field]` = lesson from 
 - A count ("2/4") hidden under a button with no cue that the list continues.
 - A status pill floating over the game board.
 - Using the full screen width for a paragraph on iPad or landscape.
+- Testing only on iPhones because the app is iPhone-only; App Review still opens it on an iPad.
