@@ -63,6 +63,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [gpt-image-2](skills/design/gpt-image-2) | Generate and edit images with ChatGPT's current image model through your ChatGPT plan and the Codex CLI. Model-agnostic: follows whatever model Codex uses. | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (modified) |
 | [archify](skills/design/archify) | Architecture, sequence, data-flow, and state diagrams as explorable standalone HTML. | [tt-a1i/archify](https://github.com/tt-a1i/archify) |
 | [motion-graphics](skills/design/motion-graphics) | Code-driven motion-graphics videos: product launch videos (Apple/Google keynote style) from real captures of your running app, and vertical YouTube Shorts, Reels, and TikTok. | [cskwork/motion-graphics-skill](https://github.com/cskwork/motion-graphics-skill) |
+| [mobile-ui-ux](skills/design/mobile-ui-ux) | Measurable UI/UX rules for iPhone apps, mobile web, and mobile games (touch targets, safe areas, contrast, Korean line breaks, HUD and combat readability), plus a 7-category scoring rubric, an independent-judge prompt, a pre-ship checklist, and per-project overrides. Pairs with impeccable. | written in this repository |
 
 ### Agents
 
