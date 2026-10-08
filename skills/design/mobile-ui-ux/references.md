@@ -6,6 +6,7 @@ All sources accessed 2026-10-08. Rules are original summaries written for this s
 
 | Key | Source |
 |---|---|
+| AppReview-4 | App Store Review Guidelines §4 Design (apps must be usable on every device they run on; iPhone apps are reviewed on iPad in compatibility mode — observed Guideline 4 rejection 2026-10, reviewed on iPad Pro 11-inch, iPadOS 27) — https://developer.apple.com/app-store/review/guidelines/#design ; running iPhone apps on iPad — https://developer.apple.com/documentation/uikit/running-your-iphone-and-ipad-apps-on-a-mac (compatibility notes) |
 | HIG-A11y | Apple HIG, Accessibility (text sizes 17 pt default / 11 pt minimum; 44x44 pt default and 28x28 pt minimum controls; ~12 pt / ~24 pt padding; contrast table; gesture alternatives) — https://developer.apple.com/design/human-interface-guidelines/accessibility |
 | HIG-Games | Apple HIG, Designing for games (legible text, button sizes, safe areas, aspect ratios 16:10 / 19.5:9 / 4:3, teach through play, defer requests, initial download <= 30 min) — https://developer.apple.com/design/human-interface-guidelines/designing-for-games |
 | HIG-GameCtl | Apple HIG, Game controls (virtual controls: 44x44 pt frequent, 28x28 pt menus; thumb placement; press states; floating thumbstick; action symbols) — https://developer.apple.com/design/human-interface-guidelines/game-controls |

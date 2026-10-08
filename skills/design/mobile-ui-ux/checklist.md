@@ -8,7 +8,7 @@ Mark each item pass / fail / n/a with evidence (screenshot or test name). Fix fa
 - [ ] A mid device (6.1" class, 393 x 852 pt, @3x).
 - [ ] Largest supported device (Pro Max class, 440 x 956 pt, @3x).
 - [ ] Each supported orientation; for landscape games, Dynamic Island on the left and on the right.
-- [ ] iPad only if the app ships on iPad (4:3, Stage Manager window sizes).
+- [ ] iPad, always: an iPhone-only app on an iPad simulator in compatibility mode (App Review tests there, L-16); a universal app at 4:3 full screen and Stage Manager window sizes.
 - [ ] Web: 320, 375, 393, 440 CSS px wide; iOS Safari with toolbar shown and hidden; standalone PWA if installable.
 
 ## 2. Languages
@@ -59,6 +59,8 @@ Suggested tests; name them so they run in CI or a pre-commit hook:
 Tools: XCUITest (`frame`, `isHittable`), SwiftUI previews at multiple sizes, Godot/Unity scene-tree walkers that read global rects, Playwright with device emulation for web.
 
 ## 7. Before committing a release candidate
+
+- [ ] Screens captured and floors passed on the iPad compatibility-mode window (L-16), not only on iPhones.
 
 - [ ] Rubric scored; bar met by an independent judge (not self-score) for release candidates.
 - [ ] Score sheet and screenshots saved in the project (path in the commit message).
