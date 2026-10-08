@@ -1,0 +1,27 @@
+# Copy into the target's existing harness format; bind action names to its API.
+id: save-resume
+policy_version: 1
+policy_rng: project-pinned-seeded-rng
+seeds: [1000, 1001] # explicit list; expand to the selected budget
+fixture: owned-active-session
+game_seed: fixed-project-fixture-seed
+phases: [preparation, combat, draft, results] # replace with shipped domain terms
+settings:
+  locales: [en, ko] # shipped languages only
+  sizes: [smallest, largest]
+  speeds: [1, 2, 3] # shipped rates only
+actions:
+  - action: reach-phase
+    via: real-ui-and-controller
+    expected: phase-visible-and-ready
+  - action: save-and-quit
+    expected: eligible-save-written-or-terminal-save-absent
+  - action: cold-launch-and-continue
+    expected: canonical-state-and-visible-entities-restored-or-continue-absent
+  - action: first-valid-player-command
+    expected: accepted-first-attempt
+observations: [input-eligibility, command-id, result, logical-tick, wall-ms, state-hash]
+oracles: [O-1, O-2, O-3, O-4, O-5, O-6, O-7, O-8]
+termination: all-phase-fixtures-covered
+case_timeout_s: 180
+reset: harness-owned-profile-only-between-cases
