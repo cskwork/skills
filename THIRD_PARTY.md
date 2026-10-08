@@ -1,6 +1,6 @@
 # Third-party and source notices
 
-Every vendored skill keeps its upstream license file in its own folder. Copies were taken on 2026-10-05 from these commits.
+Every vendored skill keeps its upstream license file in its own folder. Copies were taken on 2026-10-05 from these commits, unless the row says otherwise.
 
 | Folder | Upstream | Commit | License |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | `b223500` | MIT, © 2026 DietrichGebert |
 | `skills/design/impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) (`plugin/skills/impeccable`, v4.5.0) | `ece38d9` | Apache-2.0, see `NOTICE.md` |
-| `skills/design/archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | `73aaa06` | MIT, © 2026 tt-a1i |
+| `skills/design/diagram-design` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) (`skills/diagram-design/`, v2.6, copied 2026-10-08) | `f4547ee` | MIT, © 2025 Cathryn Lavery |
 | `skills/design/gpt-image-2` | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (`gpt-image-2/`), modified: feature flag enabled only when off, saved-image fallback, model-agnostic triggers, thread-id-scoped session reads for parallel runs, image-tool result extraction, no silent prompt softening (refusal and quota exit codes), batch.py | `18d6100` | MIT, © 2026 agentspace-so |
 | `skills/engineering/jk` | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) | `ed86f89` | MIT, © 2025 Aviv Sinai and contributors |
 
