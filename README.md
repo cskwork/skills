@@ -46,6 +46,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [prototype](skills/engineering/prototype) | Build a throwaway prototype to answer a design question. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [retro](skills/engineering/retro) | Run a retrospective on a coding session. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [jk](skills/engineering/jk) | Drive Jenkins from the terminal with the `jk` CLI: jobs, runs, logs, artifacts, credentials. | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) |
+| [swiftui-pro](skills/engineering/swiftui-pro) | Review SwiftUI code for modern API use, data flow, navigation, accessibility, and performance, with before/after fixes. Pairs with mobile-ui-ux. | [twostraws/SwiftUI-Agent-Skill](https://github.com/twostraws/SwiftUI-Agent-Skill) |
 
 ### Productivity
 
