@@ -10,6 +10,8 @@ Concrete rules for usable phone interfaces: sizes in pt, contrast ratios, durati
 
 This skill answers "can a person on a small phone read it, reach it, understand it, and recover from mistakes?" It does not pick a visual style. For aesthetic direction, typography choice, palette, and critique of taste, use **impeccable**; then run this skill's rules and rubric on the result.
 
+When the app is SwiftUI, pair with **swiftui-pro** for code-level API use (deprecated APIs, data flow, navigation, the SwiftUI way to meet a rule). Where they disagree, this skill's floors win; for example, LOC-1 allows a UIKit-backed label even though swiftui-pro avoids UIKit by default.
+
 ## When to use
 
 - Designing or building any screen for an iPhone app, a mobile web page, or a mobile game.

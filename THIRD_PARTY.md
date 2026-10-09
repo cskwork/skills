@@ -15,6 +15,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/design/diagram-design` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) (`skills/diagram-design/`, v2.6, copied 2026-10-08) | `f4547ee` | MIT, © 2025 Cathryn Lavery |
 | `skills/design/gpt-image-2` | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (`gpt-image-2/`), modified: feature flag enabled only when off, saved-image fallback, model-agnostic triggers, thread-id-scoped session reads for parallel runs, image-tool result extraction, no silent prompt softening (refusal and quota exit codes), batch.py | `18d6100` | MIT, © 2026 agentspace-so |
 | `skills/engineering/jk` | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) | `ed86f89` | MIT, © 2025 Aviv Sinai and contributors |
+| `skills/engineering/swiftui-pro` | [twostraws/SwiftUI-Agent-Skill](https://github.com/twostraws/SwiftUI-Agent-Skill) (`swiftui-pro/`, v2.0.0, copied 2026-10-09; Claude plugin wrapper `skills/` and `.claude-plugin/` left out) | `f980071` | MIT, © 2026 Paul Hudson |
 
 My own skills, copied from their home repositories:
 
