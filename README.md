@@ -39,7 +39,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | --- | --- | --- |
 | [sdlc-kit](skills/engineering/sdlc-kit) | Gated SDLC loop (intent → spec → plan → build → ship → maintain) with human approvals. | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) |
 | [verify-app](skills/engineering/verify-app) | Build and run the app to prove a change works end to end. For agents without a built-in verify, such as Codex. | this repo |
-| [bughunt](skills/engineering/bughunt) | Find and fix game/app interaction bugs with seeded personas, invariant oracles, failure replay, and Godot, native iOS, and web adapters. | this repo |
+| [bughunt](skills/engineering/bughunt) | Find and fix game/app interaction bugs with seeded personas, invariant oracles, failure replay, and Godot, native iOS, and web adapters. | [cskwork/bughunt-skill](https://github.com/cskwork/bughunt-skill) |
 | [db-intelligence](skills/engineering/db-intelligence) | One skill for PostgreSQL, MySQL, SQLite, and MongoDB: detect the engine, connect credential-safe, read schema, read before writing, never write to prod. | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) |
 | [sql-walkthrough](skills/engineering/sql-walkthrough) | Explain SQL/batch logic to a non-expert: numbered source lines, the real rows they read, per-line arithmetic, a results table, and an executed counter-example. | [cskwork/sql-walkthrough](https://github.com/cskwork/sql-walkthrough) |
 | [improve-codebase-architecture](skills/engineering/improve-codebase-architecture) | Find deepening opportunities, show them as an HTML report, then grill through the one you pick. | [mattpocock/skills](https://github.com/mattpocock/skills) |
