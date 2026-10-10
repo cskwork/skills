@@ -82,6 +82,7 @@ These skills ship with a tool or a machine setup, so get them from their own hom
 | [verify](skills/engineering/verify) | Claude Code's own `/verify`: builds and runs your app to confirm a change does what it should. | Comes with Claude Code (v2.1.200+). Type `/verify`. |
 | ego-browser | Browser for agents that shares your logged-in sessions ([ego-lite](https://github.com/citrolabs/ego-lite)). | Install the ego lite app, or `npx skills add citrolabs/ego-lite` |
 | hindsight | Shared long-term memory for Claude Code, Codex, and Hermes ([hindsight-agent-setup](https://github.com/cskwork/hindsight-agent-setup)). | `curl -fsSL https://raw.githubusercontent.com/cskwork/hindsight-agent-setup/main/bootstrap.sh \| bash` |
+| agent-crew | A Claude Code mod that shows your subagents above the prompt: what each is doing, progress, time left, tokens. This fork adds an animated ASCII critter per subagent in the terminal, each with its own face ([bekir1184/agent-crew](https://github.com/bekir1184/agent-crew), MIT). | `/plugin install agent-crew --marketplace cskwork/agent-crew` |
 
 ## Toolkit
 
