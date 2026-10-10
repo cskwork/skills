@@ -16,6 +16,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/design/gpt-image-2` | [agentspace-so/agent-skills](https://github.com/agentspace-so/agent-skills) (`gpt-image-2/`), modified: feature flag enabled only when off, saved-image fallback, model-agnostic triggers, thread-id-scoped session reads for parallel runs, image-tool result extraction, no silent prompt softening (refusal and quota exit codes), batch.py | `18d6100` | MIT, © 2026 agentspace-so |
 | `skills/engineering/jk` | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) | `ed86f89` | MIT, © 2025 Aviv Sinai and contributors |
 | `skills/engineering/swiftui-pro` | [twostraws/SwiftUI-Agent-Skill](https://github.com/twostraws/SwiftUI-Agent-Skill) (`swiftui-pro/`, v2.0.0, copied 2026-10-09; Claude plugin wrapper `skills/` and `.claude-plugin/` left out) | `f980071` | MIT, © 2026 Paul Hudson |
+| `skills/engineering/simless` | [abacusai/simless](https://github.com/abacusai/simless) (`Templates/SKILL.md`, v0.1.2, copied 2026-10-11), modified: default-testing policy (simulator only for the final pass) and one-time Mac setup in §0 | `676b089` | MIT-0, © 2026 Abacus.AI, Inc. (the CLI itself is Apache-2.0 and is not vendored) |
 
 My own skills, copied from their home repositories:
 
