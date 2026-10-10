@@ -108,6 +108,8 @@ NoteList.empty · light · iphone 402×874 · 31 ms · patch 2
 
 `simless reload` hot-patches only the edited files plus the fixtures file. If a patch can't express a change (stored properties, function signatures, new types used elsewhere), it falls back to a full build automatically. Compiler errors point at your real `file:line`: fix them and re-run. `simless reload` with no arguments picks up every file edited since the last `simless up`.
 
+**Reverted edits stay stale (cskwork, 0.1.2).** Suppose you edit a view, reload, then revert the file (`git checkout`, `git restore`, undo). A bare `simless reload` keeps the old patch, so the render still shows the reverted edit. The host also re-applies that patch when it relaunches. After any revert, run `simless reload <reverted files>` or `simless up`. Then confirm the render shows the current text.
+
 ## 4. How far to trust a result
 
 A **failure** from simless (a test failure, an issue, a wrong label or frame) is almost always real; fix it. A **pass** is a strong signal, not proof:
