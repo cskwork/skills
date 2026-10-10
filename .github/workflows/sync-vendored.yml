@@ -1,0 +1,42 @@
+# Keeps skills copied from cskwork's own standalone repos in step with them.
+# Runs daily and on demand (Actions tab → Sync vendored skills → Run workflow).
+# Add a line to `matrix.include` to sync another standalone skill repo.
+name: Sync vendored skills
+
+on:
+  schedule:
+    - cron: '17 21 * * *' # 06:17 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: sync-vendored
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - repo: cskwork/quality-loop-skill
+            dest: skills/engineering/quality-loop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repo }}
+          path: .upstream
+      - name: Copy the skill files (no README, LICENSE, or repo files)
+        run: |
+          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore .upstream/ "${{ matrix.dest }}/"
+          rm -rf .upstream
+      - name: Commit when changed
+        run: |
+          git add -A "${{ matrix.dest }}"
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          sha=$(git ls-remote "https://github.com/${{ matrix.repo }}.git" HEAD | cut -c1-7)
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "skills: sync ${{ matrix.dest }} from ${{ matrix.repo }}@${sha}"
+          git pull --rebase -q && git push
