@@ -22,6 +22,8 @@ jobs:
         include:
           - repo: cskwork/quality-loop-skill
             dest: skills/engineering/quality-loop
+          - repo: cskwork/bughunt-skill
+            dest: skills/engineering/bughunt
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
