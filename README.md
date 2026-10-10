@@ -67,6 +67,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [diagram-design](skills/design/diagram-design) | 44 diagram and chart types (architecture, flowchart, sequence, state, ER, timeline, Sankey, and more) as self-contained HTML/SVG/PNG, with Mermaid, .drawio, and .excalidraw import. | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) |
 | [motion-graphics](skills/design/motion-graphics) | Code-driven motion-graphics videos: product launch videos (Apple/Google keynote style) from real captures of your running app, and vertical YouTube Shorts, Reels, and TikTok. | [cskwork/motion-graphics-skill](https://github.com/cskwork/motion-graphics-skill) |
 | [mobile-ui-ux](skills/design/mobile-ui-ux) | Measurable UI/UX rules for iPhone apps, mobile web, and mobile games (touch targets, safe areas, contrast, Korean line breaks, HUD and combat readability), plus a 7-category scoring rubric, an independent-judge prompt, a pre-ship checklist, and per-project overrides. Pairs with impeccable. | written in this repository |
+| [image-first-ui](skills/design/image-first-ui) | Image-first UI: three UX-distinct interface options generated as images through your ChatGPT plan; the one you pick becomes the reference the real build must match. Adds production sizing, stack choice, a domain pattern list, and a release gate with an independent judge. Admin, web app, landing page, or game screens. | written in this repository (image scripts from gpt-image-2) |
 
 ### Agents
 

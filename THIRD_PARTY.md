@@ -30,4 +30,6 @@ My own skills, copied from their home repositories:
 
 `skills/engineering/verify-app` is written in this repository.
 
+`skills/design/image-first-ui` is written in this repository. Its `scripts/gen.sh`, `scripts/extract_image.py`, and `scripts/batch.py` are copied from `skills/design/gpt-image-2` (MIT, © 2026 agentspace-so); see its `NOTICE.md`.
+
 Upstream repositories stay the source of truth. To refresh a copy, re-copy the folder from the upstream's latest commit and update this table.
