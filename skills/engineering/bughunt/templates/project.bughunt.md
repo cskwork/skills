@@ -5,6 +5,7 @@ Copy to the target project root and replace sample values with its recorded reci
 ## Scope
 
 - Target / adapter: <artifact and godot | ios-native | web>
+- App profile(s): <game | crud-app | ai-chat | media; every one the product ships> (references/<profile>.md)
 - Allowed edits/runs: <paths, platforms, time window; or documentation-only>
 - Concurrent/protected resources: <builds, simulators, owner profile, production accounts>
 - Fix boundary: <UI/controller permitted; rules/API/migration changes require separate scope>
@@ -13,17 +14,17 @@ Copy to the target project root and replace sample values with its recorded reci
 
 ## Personas and coverage
 
-- Include: new-player, masher, save-resume, interruptions, resize, slow-player, speed-changer, monkey, localization, low-power-motion.
+- Include: new-player, masher, save-resume, interruptions, resize, slow-player, speed-changer, monkey, localization, low-power-motion, under the profile's names, plus its extra cases.
 - Skip with reason: <persona/feature absent or postponed; required unsupported coverage stays blocked>
 - Persisted phases and terminal boundaries: <every actual phase, elimination/results, checkpoints>
 - Settings: <small/large devices and safe insets, supported rotation, EN/KR/shipped locales, speeds, render styles, motion/power>
-- Required layers: <exported volume, rendered input/layout, simulator/device/OS parity>
+- Required layers: <e.g. exported volume, rendered input/layout, simulator/device/OS parity; web: fixture/emulator backend, real-clock UI path; a profile's `live` pass is reported apart>
 - Paired risks: <resume × masher, transition × speed, locale × small size, save × interruption>
 
 ## Budgets and completion
 
 - Seeds per persona per required layer: 20; explicit policy seeds 1000–1019.
-- Game seeds / fixtures: <explicit mapping, pinned RNG and initial data>
+- Product seeds / fixtures: <game RNG seeds, seeded accounts and records, model-stub scripts or media files; pinned and explicit>
 - Clean passes: 2 on identical final build/corpus, isolated fixture reset each case.
 - Total time: 60 min; case timeout: 180 s; artifact cap: 250 MB.
 - Active-progress deadline: 30 s; phase-specific overrides: <actual timers + margin and pause/resume policy>.
@@ -33,7 +34,7 @@ Copy to the target project root and replace sample values with its recorded reci
 
 ## Oracles
 
-- Enable: O-1 runtime, O-2 commands, O-3 readiness, O-4 layout/input, O-5 state, O-6 replay, O-7 progress, O-8 persistence.
+- Enable: O-1 runtime, O-2 commands, O-3 readiness, O-4 layout/input, O-5 state, O-6 replay, O-7 progress, O-8 persistence, plus the app profile's O-9 and up.
 - Contract bindings / observation hooks: <source/API for each ID; cadence; minimum target units>
 - Expected invalid input and duplicate semantics: <conditions + exact result, defined before action>
 - Canonical state projection: <fields, volatile-field exclusions with reason, hash scheme>

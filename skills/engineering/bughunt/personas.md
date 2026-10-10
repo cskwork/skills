@@ -1,6 +1,6 @@
 # Seeded personas
 
-Translate each policy into the project's action vocabulary. Every persona has a reset fixture, seeded selection/delay rules, phase coverage, expected outcomes, and a terminal condition. Definition format: [templates/persona.yaml](templates/persona.yaml).
+Translate each policy into the project's action vocabulary. IDs and wording here are game-native; the app profile in [references/](references/) gives each ID its name and stress for other products. Every persona has a reset fixture, seeded selection/delay rules, phase coverage, expected outcomes, and a terminal condition. Definition format: [templates/persona.yaml](templates/persona.yaml).
 
 | ID | Action policy | Boundary coverage / evidence |
 |---|---|---|
@@ -22,7 +22,7 @@ Translate each policy into the project's action vocabulary. Every persona has a 
 - Keep mandatory scenarios even if random actions never reach them. Use deterministic prefixes (reach draft, save, resume) followed by seeded exploration.
 - Add paired boundary cases: resume then rapid Ready; background at checkpoint then Continue; slow draft at each playback speed; EN/KR at smallest size with a modal; terminal event followed by another save attempt.
 - Reset persistent data between cases; retain it only within a save-resume case. Run the second pass from the same initial fixtures, not pass 1's leftovers.
-- Skip a persona only when the feature is absent or execution is disallowed; record the reason and affected evidence. Missing tooling for a shipped feature is `blocked`, not proof of correctness.
+- Skip a persona, or a single step inside one (no undo, no search, no pagination), only when the feature is absent or execution is disallowed; record the reason and affected evidence. Missing tooling for a shipped feature is `blocked`, not proof of correctness.
 
 ## Input expectations
 
