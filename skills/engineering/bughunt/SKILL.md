@@ -1,6 +1,6 @@
 ---
 name: bughunt
-description: Find and fix interaction bugs in games and apps with seeded self-playing personas, per-step invariant oracles, reproducible failure bundles, and regression replay. Use before a release candidate, after major features, or for an owner's "only happens when I do X" report. Supports Godot, native iOS, and web.
+description: Find and fix interaction bugs in games, CRUD apps, AI chat and media apps with seeded self-playing personas, per-step invariant oracles, reproducible failure bundles, and regression replay. Use before a release candidate, after major features, or for an owner's "only happens when I do X" report. Supports Godot, native iOS, and web.
 license: MIT
 ---
 
@@ -10,12 +10,13 @@ Exercise the product through its real controller and input paths, capture the fi
 
 ## Scope and setup
 
-1. Read repository instructions, release/build recipes, existing QA plumbing, and root `.bughunt.md`. Use [templates/project.bughunt.md](templates/project.bughunt.md) for a missing override; record chosen defaults before running.
+1. Read repository instructions, release/build recipes, existing QA plumbing, and root `.bughunt.md`. Use [templates/project.bughunt.md](templates/project.bughunt.md) for a missing override; record chosen defaults before running. In a documentation-only run, record the chosen values in the report instead of writing the file.
 2. Establish permitted edits and runs, build identity, supported platforms, isolated test storage/accounts, and concurrency constraints. A skill-only request ends with documentation validation: **do not build, launch, or modify the reference app**. An owner's postponed run remains postponed. Keep production data, purchases, publication, and other people's builds/devices outside the harness.
-3. Select the adapter: [Godot](adapters/godot.md), [native iOS](adapters/ios-native.md), or [web](adapters/web.md). Extend existing project runners; do not add a testing framework merely to follow this skill. Use [references.md](references.md) when choosing a technique or checking platform support.
-4. Identify every shipped phase/screen and boundary: fresh launch, navigation, save, quit, cold launch, resume, interruptions, terminal states, and migration/error paths already supported. Map each to an observable oracle and a reachable test fixture. An unreachable required boundary is a coverage gap.
+3. Select the adapter: [Godot](adapters/godot.md), [native iOS](adapters/ios-native.md), or [web](adapters/web.md). Extend existing project runners; do not add a testing framework merely to follow this skill. Use [references/sources.md](references/sources.md) when choosing a technique or checking platform support.
+4. Select the app profile and read it before planning: [game](references/game.md), [crud-app](references/crud-app.md) (records, forms, accounts), [ai-chat](references/ai-chat.md) (model conversations, streaming), or [media](references/media.md) (record, play, camera). A product that mixes types loads every profile it ships, e.g. a game with accounts loads `game` and `crud-app`; a product matching none takes the nearest and records the unmapped flows as coverage gaps. The profile renames personas, binds oracles to the product, adds cases and fixtures; the core files stay the single source for everything it leaves unsaid.
+5. Identify every shipped phase/screen and boundary: fresh launch, navigation, save, quit, cold launch, resume, interruptions, terminal states, and migration/error paths already supported. Map each to an observable oracle and a reachable test fixture. An unreachable required boundary is a coverage gap. Where a profile or oracle names a documented contract (draft kept or discarded, conflict rule, what sign-out clears) and the product documents none, report `contract absent` as a finding for the owner and assert the observable minimum: no silent data loss, no crash, a visible outcome.
 
-Done: a recorded run matrix has concrete commands/artifacts, fixture reset, seeds, personas, phase coverage, enabled oracles, platform layers, time/disk limits, and permitted side effects.
+Done: a recorded run matrix has concrete commands/artifacts, profile(s), fixture reset, seeds, personas, phase coverage, enabled oracles, platform layers, time/disk limits, and permitted side effects.
 
 ## 1. Prepare the shipped target
 
@@ -27,7 +28,7 @@ Use separate test profiles, save locations, browser contexts, and devices. Reset
 
 ## 2. Run seeded personas
 
-Read [personas.md](personas.md) and adapt [templates/persona.yaml](templates/persona.yaml). Run all applicable policies:
+Read [personas.md](personas.md) and adapt [templates/persona.yaml](templates/persona.yaml). Run all applicable policies, under the names and stresses the app profile gives them, plus the profile's extra cases:
 
 | Persona | Required stress |
 |---|---|
@@ -48,7 +49,7 @@ Defaults if no project budget exists: 20 seeds per persona per required layer, t
 
 ## 3. Observe invariant oracles
 
-Read [oracles.md](oracles.md); bind [templates/invariants.yaml](templates/invariants.yaml) to the project's contracts. Check logical invariants after every action/event/tick; check presentation at each rendered frame and lifecycle boundary where instrumentation permits. External drivers must disclose their sampling interval and any unobserved frame-level checks.
+Read [oracles.md](oracles.md); bind [templates/invariants.yaml](templates/invariants.yaml) to the project's contracts, using the app profile's bindings. A profile's extra oracles (O-9 and up) are enabled alongside O-1..O-8 and need the same controlled self-check. Check logical invariants after every action/event/tick; check presentation at each rendered frame and lifecycle boundary where instrumentation permits. External drivers must disclose their sampling interval and any unobserved frame-level checks.
 
 | ID | Condition |
 |---|---|

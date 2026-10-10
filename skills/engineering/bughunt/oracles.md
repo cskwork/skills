@@ -1,6 +1,6 @@
 # Invariant oracles
 
-Bind these IDs to real API/schema/UI contracts before executing; use [templates/invariants.yaml](templates/invariants.yaml). Observe independently of action generation. Maintain an append-only event stream with logical tick and wall time, phase ID, actor ID, action/command ID and result.
+Bind these IDs to real API/schema/UI contracts before executing, through the app profile in [references/](references/) when the product is not a game. Profiles add their own oracles from O-9 up; enable them with the core set; use [templates/invariants.yaml](templates/invariants.yaml). Observe independently of action generation. Maintain an append-only event stream with logical tick and wall time, phase ID, actor ID, action/command ID and result.
 
 | ID | Observation and assertion | Failure / false-positive boundary |
 |---|---|---|
@@ -17,7 +17,7 @@ Bind these IDs to real API/schema/UI contracts before executing; use [templates/
 
 - Logical state checks run after every dispatched action and drained event, and every simulation tick where available. Transient presentation checks run after layout/render frames with timestamps shared by the event stream.
 - External XCUITest/Maestro/Playwright checks sample after steps unless a QA probe supplies frame observations. Record the cadence. A screenshot after the reveal cannot prove that no bot acted before it.
-- Use actual hit regions (including custom-drawn board slots), safe insets, viewport transforms and display scale. For iOS use the project's iPhone baseline, normally 44 × 44 pt targets; for web use its documented CSS-pixel requirement. Raw export pixels are not points. [Apple button guidance](https://developer.apple.com/design/human-interface-guidelines/buttons) and [WCAG target-size minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) define different baselines.
+- Use actual hit regions (including custom-drawn board slots), safe insets, viewport transforms and display scale. For iOS use the project's iPhone baseline, normally 44 × 44 pt targets; for web use its documented CSS-pixel requirement, and with none documented fail under 24 × 24 CSS px (WCAG 2.2 AA) and report touch targets under 44 px as findings. Raw export pixels are not points. [Apple button guidance](https://developer.apple.com/design/human-interface-guidelines/buttons) and [WCAG target-size minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) define different baselines.
 - Record frame/step observation counts per oracle, not only "enabled." Unsupported frame instrumentation stays a declared coverage limit.
 
 ## Oracle self-check

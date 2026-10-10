@@ -26,3 +26,14 @@ Reviewed 2026-10-09. Primary documentation and practitioner research informed th
 - [Playwright: actionability](https://playwright.dev/docs/actionability): built-in waiting checks can change adversarial input timing.
 - [Playwright: traces](https://playwright.dev/docs/trace-viewer): action timeline, screenshots and snapshots for failure evidence.
 - [Playwright: authentication/storage](https://playwright.dev/docs/auth), [emulation](https://playwright.dev/docs/emulation): isolated contexts, persistence fixtures and emulated viewport/locale/motion; these do not establish native OS parity.
+
+## App profiles
+
+Reviewed 2026-10-10.
+
+- [Playwright: mock APIs](https://playwright.dev/docs/mock): route and HAR replay for the `crud-app` and `ai-chat` network fixtures and model stub.
+- [Stripe: idempotent requests](https://docs.stripe.com/api/idempotent_requests): the request-ID pattern behind "one Save, one mutation" in `crud-app` O-2.
+- [MDN: KeyboardEvent.isComposing](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/isComposing): Enter during IME composition, the Korean half-composed submit case.
+- [OWASP: improper output handling (LLM05)](https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/), [XSS prevention cheat sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html): model output as untrusted input, `ai-chat` O-9.
+- [WebRTC: testing](https://webrtc.org/getting-started/testing): Chromium fake media devices and `--use-file-for-fake-audio-capture` for `media` fixtures.
+- [Apple: handling audio interruptions](https://developer.apple.com/documentation/avfaudio/handling-audio-interruptions): the interruption and resume contract behind `media` O-10.
