@@ -35,7 +35,9 @@ New Mac, once:
    xcodebuild -project <App>.xcodeproj -scheme <App> -destination 'platform=macOS,variant=Designed for iPad' \
      -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
    ```
-3. Optional: `simless agent install`. The owner grants Full Disk Access to SimlessAgent. This speeds up hot reload from about 15 s to about 2 s.
+3. Optional: `simless agent install`. The owner then adds `~/Library/Application Support/Simless/SimlessAgent.app` under Full Disk Access; the app does not appear in that list until it is installed. `simless status` should then print `live reload: on`.
+   - Measured on PetMochi, 2026-10-11: a reload took 10.8–14.5 s before and 4.2–5.7 s after.
+   - The patch itself applies in 0.4 s; the rest is compile time for the edited view and the views that embed it. Upstream quotes about 2 s.
 
 Per repository:
 - XcodeGen projects (`project.yml`): run `xcodegen generate` before `simless init`, because the `.xcodeproj` is git-ignored.
