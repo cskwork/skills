@@ -1,0 +1,141 @@
+---
+name: simless
+description: Default way to test iOS apps. Fast, headless, simulator-free verification of SwiftUI iOS apps with the `simless` CLI. Use it whenever you build, change, test or verify an iOS app (screens, layout, text, accessibility labels, dark mode, iPad/small iPhone, unit tests), when the user says to test or verify UI with simless, or instead of booting the iOS Simulator. The simulator is only for the final pass.
+---
+
+# SwiftUI verification with `simless`
+
+`simless` runs the app natively on the Mac as an invisible render host: no simulator, no windows. A screen render returns its accessibility tree in milliseconds. An edited view hot-reloads in about 2 s. Many agents can work in parallel, one host per git worktree.
+
+**Do not boot the iOS Simulator for screen checks or unit tests.** Use `simless`. Use the simulator only for what `simless` can't do (see Limits).
+
+## 0. Default policy and machine setup (cskwork)
+
+- **simless is the default for every iOS test during development**: screen checks, layout, accessibility, dark/light, device sizes, unit tests.
+- **The simulator is for the final pass only.** Use it once before you call a feature, release candidate or review gate done, and for anything §4 says simless can't verify:
+  - XCUITest flows across screens
+  - gestures
+  - keyboard
+  - system UI
+  - Dynamic Type
+  - pixel-exact captures
+  - App Review's iPad compatibility window
+  - content inside a `WKWebView`, which is not verified by simless
+- Name your own simulators (for example `qa-*`) and delete them afterwards. Leave the owner's devices alone.
+
+New Mac, once:
+1. Install the CLI:
+   ```sh
+   git clone https://github.com/abacusai/simless ~/Documents/Git/simless
+   cd ~/Documents/Git/simless && swift build -c release
+   ln -sf "$PWD/.build/release/simless" ~/.local/bin/simless
+   ```
+2. simless needs the team wildcard development profile that lists this Mac. If `simless up` says the profile is missing, ask the owner first: the next step registers this Mac in the developer account. Then build once for "My Mac (Designed for iPad)":
+   ```sh
+   xcodebuild -project <App>.xcodeproj -scheme <App> -destination 'platform=macOS,variant=Designed for iPad' \
+     -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+   ```
+3. Optional: `simless agent install`. The owner grants Full Disk Access to SimlessAgent. This speeds up hot reload from about 15 s to about 2 s.
+
+Per repository:
+- XcodeGen projects (`project.yml`): run `xcodegen generate` before `simless init`, because the `.xcodeproj` is git-ignored.
+- After `simless init`, move `Simless/` under the app's source folder (for example `App/Simless`) and set `kitDir` to match. Then regenerate, so the kit files join the app target.
+
+## 1. Is the repo set up?
+
+```sh
+simless status        # fails with "no .simless.json" if the repo isn't set up
+```
+
+If it isn't set up, do it yourself:
+
+1. Run `simless init` at the repo root. It writes `.simless.json` and `<App>/Simless/SimlessKit.swift` (generated, never edit), creates `SimlessFixtures.swift`, and adds the hook to the `@main` App's `init()`. Check the hook compiles. If the project doesn't use synchronized folders, add both Simless files to the app target.
+2. If app startup has side effects that a background render host shouldn't trigger (analytics, sync, network), guard them: `if !SimlessHost.isActive { ... }` (DEBUG only).
+3. Register fixtures (below), then run `simless up`. The first build takes a few minutes; later ones are incremental.
+
+`simless init` needs an Xcode project (not a workspace) with an app-hosted unit-test target. If either is missing, tell the user instead of improvising.
+
+## 2. Fixtures: the screens simless can render
+
+`SimlessFixtures.swift` is normal app code:
+
+```swift
+#if DEBUG && os(iOS)
+import SwiftUI
+
+@MainActor
+func simlessFixtures(_ r: SimlessRegistry) {
+    r.add("Settings") { SettingsView().environmentObject(SettingsStore.preview) }
+    r.add("Paywall.trialEnded") { PaywallView(state: .trialEnded, products: .fixture) }
+    r.add("NoteList.empty") { NoteListView(notes: []) }
+    r.add("NoteList.long") { NoteListView(notes: .fixture(count: 50, longTitles: true)) }
+}
+#endif
+```
+
+- **One fixture per meaningful state:** normal, empty, loading, error, long content.
+- **Deterministic data only.** Use fixed dates, in-memory stores, preview/fixture objects. No network, no real user data. Reuse existing preview data or test seeds when the project has them.
+- **Inject whatever the view expects** (`.environmentObject`, `.environment`, model containers).
+- **Name them `Screen.state`.** When you add or change a screen, add or update its fixtures in the same change.
+
+## 3. The loop
+
+```sh
+simless up                                   # once per worktree, and after big changes
+simless reload --render <Fixture>            # after editing views: hot reload (~2 s) + render
+simless render all                           # every fixture
+simless render <Fixture> --dark --device ipad          # devices: iphone, iphone-small, iphone-max, ipad
+simless render all --matrix                  # every fixture × light/dark × iphone, iphone-small, ipad
+simless calibrate                            # once per app: compare every fixture with an iOS Simulator
+simless render <Fixture> --png /tmp/shots/   # only when you need to see pixels
+simless test MyAppTests/SomeTests            # unit tests on the Mac, no simulator
+```
+
+Reading a render:
+
+```
+NoteList.empty · light · iphone 402×874 · 31 ms · patch 2
+  header  "No Notes"  @140,300 122×26
+  button  "New Note" #notes.new  @48,360 306×50
+  issues (1):
+    ⚠ button without accessibility label @48,420 306×50
+```
+
+- **Lines:** each is role, label, `#identifier`, and frame in points (`@x,y w×h`) on the device canvas.
+- **Check the tree first.** Is the expected text there? Are elements where they should be, not overlapping and not off-screen? Fix every listed issue: unlabeled controls, text VoiceOver reads twice, off-screen elements, tap targets under 44 pt, overlapping controls. The checks don't cover everything, so also read the frames yourself.
+- **Check variants:** `--matrix` for layout changes.
+- **Look at a `--png`** when the change is visual: colors, images, clipping. Read the image file.
+
+`simless reload` hot-patches only the edited files plus the fixtures file. If a patch can't express a change (stored properties, function signatures, new types used elsewhere), it falls back to a full build automatically. Compiler errors point at your real `file:line`: fix them and re-run. `simless reload` with no arguments picks up every file edited since the last `simless up`.
+
+## 4. How far to trust a result
+
+A **failure** from simless (a test failure, an issue, a wrong label or frame) is almost always real; fix it. A **pass** is a strong signal, not proof:
+
+- **Calibrate once per app.** Run `simless calibrate` once per app, and again after large UI changes. It renders every fixture in one iOS Simulator too and lists what differs. Trust renders of the matching fixtures; check the others in a simulator.
+- **Hot reload.** Hot reload works for views in the app target and in local Swift packages, and also patches the views that embed what you edited. When it says "patch can't cover this edit", it does a full build; that's expected.
+- **Scroll content.** "below the fold: N element(s)" is information, not an issue: it counts scroll content listed in the tree.
+- **Device traits.** Phone canvases get phone size classes and safe areas, and every render prints its traits. The idiom stays iPad on the Mac, so code that checks `userInterfaceIdiom` takes its iPad branch in simless.
+- **Mac differences.** Text renders 2–4% wider than on iOS (long or centered text can wrap differently), `List`/`Form` rows are a few points taller, system accent colors follow the Mac, and some controls (for example a `Menu` with a custom label) are exposed differently to accessibility. Confirm line breaks, truncation and accessibility flags on such controls with `simless calibrate`. Dynamic Type is ignored.
+- **"issues: none"** only means the five automatic checks passed. Read the tree yourself.
+- **`simless test`** runs the last full build (not patches) without app capabilities (iCloud, app groups, keychain sharing, push). Tests that depend on those can differ from the simulator.
+
+simless can't verify:
+- Dynamic Type sizes,
+- gestures and swipe actions,
+- the software keyboard,
+- system UI (permissions, share sheets, StoreKit sheets),
+- navigation flows across screens,
+- pixel-exact iPhone rendering.
+
+Before you call a UI change done, say what you verified with simless and what still needs a simulator or XCUITest pass. Never claim simless verified any of the above.
+
+## 5. Housekeeping
+
+- **Don't clean up manually.** Hosts exit after 30 idle minutes (`simless down` stops one now; it relaunches on next use). When a worktree is deleted, `simless` removes its host, slot and caches automatically.
+- `simless clean` removes this worktree's build cache. `simless status` lists hosts and whether live reload is on.
+- Live reload uses SimlessAgent, which needs Full Disk Access granted once by the user. Without it, reloads still work in about 10 s. Mention it to the user if `simless status` shows live reload off; don't try to grant it yourself.
+
+In your summary, report what you verified with `simless` (which fixtures, devices and modes) and what still needs a simulator.
+
+<!-- SPDX-License-Identifier: MIT-0 · Copyright 2026 Abacus.AI, Inc. -->
