@@ -40,7 +40,8 @@ codex exec \
   --dangerously-bypass-approvals-and-sandbox \
   --skip-git-repo-check \
   -C "$(dirname "$OUT")" \
-  "Use the image_gen tool to generate: $PROMPT. Save the final PNG to $OUT"
+  "Use the image_gen tool to generate: $PROMPT. Save the final PNG to $OUT" \
+  </dev/null
 ```
 
 After the call, verify `[ -s "$OUT" ]`.
@@ -98,13 +99,38 @@ codex exec \
   --sandbox read-only \
   --skip-git-repo-check \
   -o /tmp/codex-out.txt \
-  "<PROMPT>"
+  "<PROMPT>" </dev/null
 ```
+
+**Always close stdin (`</dev/null`).** When stdin is an open pipe (agent Bash
+tools, `&` launches, `nohup`), `codex exec` prints `Reading additional input
+from stdin...` and waits for EOF forever; the run sits idle and does no work.
+The bundled scripts already do this. For a hand-written background launch,
+check its log about a minute later to confirm it is past that line. In zsh, do
+not combine a pipe with `</dev/null` (`x | codex exec ... </dev/null`): zsh's
+MULTIOS merges both inputs, so stdin still stays open.
 
 Output flags:
 - `-o, --output-last-message FILE` — final message only (cleanest)
 - `--json` — JSONL event stream
 - `--output-schema FILE` — JSON Schema constrains final response
+
+## Sandbox for delegated work (host in auto mode)
+
+A host agent in auto mode is blocked from launching an unsandboxed agent
+(`danger-full-access` or `--dangerously-bypass-approvals-and-sandbox` is denied as
+"Create Unsafe Agents"). Pick the least access the task needs:
+
+| Task needs | Flags |
+|---|---|
+| read code, answer, review | `--sandbox read-only` (default) |
+| write files in the work root | `--sandbox workspace-write --cd DIR` |
+| + write another dir | add `--add-dir DIR` (repeatable) |
+| + DB / HTTP / package download | add `--network` (`-c sandbox_workspace_write.network_access=true`) |
+
+`codex-async.sh start` refuses `danger-full-access`. A human running it in a normal
+terminal can set `CODEX_ASYNC_ALLOW_FULL_ACCESS=1`. Do not retry a denied launch with
+broader access; narrow it, or keep the task with the host.
 
 ## Long-running / async jobs (don't block the host)
 
@@ -114,6 +140,7 @@ async wrapper:
 
 ```bash
 JOB=$(./scripts/codex-async.sh start "<LONG TASK>" --sandbox read-only --timeout 10m)
+# writes + DB/HTTP: --sandbox workspace-write --cd DIR [--add-dir DIR] --network
 ./scripts/codex-async.sh status "$JOB"     # running | done rc=0 | timeout
 ./scripts/codex-async.sh wait   "$JOB" 600 # block until done (cap 600s)
 ./scripts/codex-async.sh result "$JOB"     # final message once finished

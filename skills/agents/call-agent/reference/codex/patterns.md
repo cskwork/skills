@@ -75,7 +75,7 @@ JSON
 codex exec --sandbox read-only --skip-git-repo-check \
   --output-schema /tmp/plan.schema.json \
   -o /tmp/plan.json \
-  "Plan migration from X to Y; respond per schema."
+  "Plan migration from X to Y; respond per schema." </dev/null
 ```
 
 ## Pattern 6 — Long-running / async job (don't block the host)

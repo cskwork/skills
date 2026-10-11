@@ -307,6 +307,15 @@ NOT authentication: nothing here says who produced the file, and anyone who can
 write the receipt can also run the commands. It is not a review either — the
 independent verifier (`roles/verifier.md`, fresh context) is still required and
 is not replaced by any receipt.
+The approved Track selects fresh-review grouping under AGENTS.md rule 6:
+compact combines all three lens reports and the final adversarial diff check
+in one fresh reviewer; full uses three parallel verifiers plus a separate
+adversary. All three lens VERDICT lines remain required. Current proof can be
+inspected and cited when source, recipe, upstream inputs and environment still
+match; changes require affected proof and final diff review again. This never
+permits cached source digests or skips live receipt/gate validation. Preserve
+actual report provenance; an unavailable session/tool identifier is unknown,
+not an invented attestation.
 
 `tools/verify.sh check <slug>` reports `ok` · `fail` · `flaky` · `stale` ·
 `missing` · `invalid` · `inconclusive` · `blocked` · `uncovered` · `vacuous` ·
@@ -448,7 +457,9 @@ again before `check` confirms one:
 - the **complete ship gate**, by running `gates/check-gate.sh ship` itself — the
   same program, the same words. An `evidence.md` edited after approval, a stale
   upstream, source drift: the push refuses and quotes the gate.
-- the **verification**: a configured recipe must read `ok`.
+- the **verification**: a configured recipe must read `ok`, or `blocked` with
+  the same gap the human explicitly accepted at ship (§4). A different gap
+  requires new acceptance; other states are fixed, never accepted.
 - **authority**: `--authorized` is required, *and* `intent.md`'s
   `- Scope authorization:` must actually name publishing a branch (push, PR, MR,
   review branch). An agent typing a flag does not authorize an external effect

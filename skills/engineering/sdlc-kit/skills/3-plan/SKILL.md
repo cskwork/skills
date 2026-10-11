@@ -29,6 +29,10 @@ exploration stays out of the main context. Then fill `templates/plan.md`:
   type, event, file — with its other producers and consumers and what happens
   to records that predate the change. The adversary checks it is complete;
   the verifier's Side effects lens executes it.
+  Carry forward stage 1's caller/record evidence and domain-valid legacy
+  shapes. Proof covers applicable missing, empty, null, wrong-type and unknown
+  values with preserved valid results or safe invalid refusal; an inapplicable
+  case needs a domain reason.
 - **Reach.** Every caller of each changed behavior — search the other
   repositories and tiers that call it, not only this one — with what each
   sends; the states of existing records it meets; the conditions that change
@@ -39,10 +43,20 @@ exploration stays out of the main context. Then fill `templates/plan.md`:
   before (a new validation, a newly required field, a narrowed type), list
   what every caller sends today: that change is a contract change (AGENTS.md
   rule 3).
-- **Order of work.** Make each step keep the configured checks passing. Add
-  tests with the code they test. Where two steps would write one file, plan
-  separate targets if the design allows; otherwise order them.
+- **Order of work.** Use delivery-sized vertical slices, each tied to R-items
+  and an observable result through the real interface. Put the shortest
+  runnable path first; greenfield starts with bootstrap, readiness, one action,
+  and cleanup proved before expansion. Keep configured checks passing and add
+  tests with the code they test. Order steps that write the same file.
+  If a slice's boundary or runnable path is unclear, read
+  [`Choose a slice that can finish`](../../docs/software-factory.md#choose-a-slice-that-can-finish)
+  and [`Make the product runnable early`](../../docs/software-factory.md#make-the-product-runnable-early)
+  before finalizing the order.
 - **Risks.** Record rate limits, migrations, shared state, and important quirks.
+  When UI/interaction, data/state, authentication/permissions, or API/CLI/job
+  behavior is affected, read
+  [`Spend checks where failure matters`](../../docs/software-factory.md#spend-checks-where-failure-matters)
+  and include its applicable quality checks in **Risks** and **Proof**.
 - **Proof.** For each spec requirement, name the test or command that proves it
   (bug fix: the regression test — AGENTS.md rule 6).
   Use commands from `.sdlc/config.md`.
@@ -66,16 +80,13 @@ improvising — this counts against the re-gate cap of two per stage
 
 ## Adversarial review (fresh context)
 
-This review runs at every lazymode level — plan authorizes what build
-executes irreversibly, so a keyword scan is never its substitute
-(AGENTS.md rule 3). `tools/tripwire.sh` output is evidence for the
-adversary, not a verdict.
+Run this review at every lazymode; apply AGENTS.md rule 3 to the tier and
+tripwire evidence.
 
 Dispatch an adversary (`roles/adversary.md`) with ONLY: spec.md, draft
 plan.md, `.sdlc/memory/DOMAIN.md`, `.sdlc/memory/POLICY.md` if present, and
-the tripwire output. It checks that every requirement has a
-proof command, the file list and order are complete, risks are not
-understated, and the **Gate tier** verdict is correct. Fix findings; record
+the tripwire output. Apply the role's complete plan checklist, including its
+**Gate tier** re-check. Fix findings; record
 each objection + resolution and the tier re-check in plan.md's
 **Adversarial review** section. If there were blocking findings, re-run the
 adversary over the fixed plan (max 2 rounds). Non-blocking leftovers become

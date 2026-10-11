@@ -8,17 +8,24 @@ Verified against `codex --help` v0.133.0 and `codex exec --help`.
 |---|---|
 | `-c key=value` | Override config (`-c model="gpt-5.5"`) |
 | `-m, --model NAME` | Model override (default `gpt-5.5`, 1M ctx) |
-| `-s, --sandbox` | `read-only` \| `workspace-write` \| `danger-full-access` |
+| `-s, --sandbox` | `read-only` \| `workspace-write` \| `danger-full-access` (host auto mode denies launching it; see call.md "Sandbox for delegated work") |
 | `--dangerously-bypass-approvals-and-sandbox` | Unattended runs (no approval prompts) |
 | `--dangerously-bypass-hook-trust` | Skip hook trust prompts |
 | `-C, --cd DIR` | Working root |
 | `--add-dir DIR` | Extra writable dir |
+| `-c sandbox_workspace_write.network_access=true` | Network inside `workspace-write` (verified 0.161.0) |
 | `--skip-git-repo-check` | Run outside a git repo |
 | `-o, --output-last-message FILE` | Persist only the final message |
 | `--json` | JSONL event stream on stdout |
 | `--output-schema FILE` | JSON Schema constrains final response |
 | `--ephemeral` | No session rollout written |
 | `-i, --image FILE` | Attach image input (vision) |
+
+**stdin:** if stdin is piped, `codex exec` appends it to the prompt as a
+`<stdin>` block and blocks until EOF (`Reading additional input from stdin...`).
+Pass `</dev/null` unless you mean to pipe input. In zsh, a pipe plus
+`</dev/null` merges both inputs (MULTIOS), so it still blocks. Verified on
+codex-cli 0.160.1.
 
 ## `codex review`
 
