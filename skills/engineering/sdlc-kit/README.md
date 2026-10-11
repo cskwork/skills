@@ -33,7 +33,7 @@ It is adapted from [Anthropic's AI-Native SDLC playbook](https://claude.com/blog
 | Starts coding from the first request | Explores history, code, feasibility, and the live product first, including any flow that already makes the same change; asks only what it cannot check itself |
 | Treats the user's diagnosis as truth | Labels claims `[verified: evidence]` or `[assumed: reason]` |
 | Keeps the plan inside one chat | Writes `intent.md`, `spec.md`, `plan.md`, `evidence.md`, and `delivery.md` to a searchable record store (`tools/kb.sh`), outside the application's git history |
-| Author checks its own work | A fresh-context adversary attacks the spec, plan, and diff; a separate verifier checks the build end to end, for side effects, and against the ticket |
+| Author checks its own work | Fresh review checks E2E, side effects, intent match and the final diff: one combined reviewer for approved compact work; three parallel verifiers and a separate adversary for full work |
 | A green test suite stands in for every claim | Each claim carries its own proof: a test that failed before the fix, a pin for a refactor, a measurement for a number |
 | Approval is a chat message that disappears | Approval records name the stage, artifact, time, and mode, and stay on disk in `.sdlc/approvals/` |
 | Failed attempt becomes forgotten context | Lessons go to a bounded index, business rules to their product area's page, durable facts to `DOMAIN.md`; a recurring lesson is promoted, a project check first |
@@ -79,14 +79,18 @@ Not every ticket needs all six stages:
 
 | Route | When | Flow |
 |---|---|---|
-| Compact | Small and well understood: exact files known, success checkable by an existing command, no open questions, inside what you already authorized | `intent.md` is the only work artifact and carries files, proof, risk, baseline, and delivery target. Intent (gate) → build → ship; ship's adversary review is the diff's only review |
+| Compact | Bounded and well understood; meets all [compact criteria](skills/1-intent/SKILL.md#which-route-compact-or-full) | `intent.md` carries files, proof, Reach, risk, baseline, and delivery target. Intent (gate) → build → ship. One fresh reviewer covers all three lenses, then the complete final diff check once on the same source |
 | Full | Anything ambiguous, broad, or risky | All six stages |
 
-The `Track:` line in `intent.md` records the route (criteria in `skills/1-intent`); incidents use the same routes. A surprise during build upgrades compact to full and re-approves the intent. A ticket too foggy to pin down starts with a **map** (`map.md`: destination · decided · unknown · out of scope) that resolves one unknown per session before `intent.md` is written.
+The `Track:` line in `intent.md` records the route; incidents use the same routes. Eligibility, upgrades and re-approval follow [stage 1](skills/1-intent/SKILL.md#which-route-compact-or-full); bounded deviations follow the [build rules](skills/4-build/SKILL.md#execute). A ticket too foggy to pin down starts with a **map** (`map.md`: destination · decided · unknown · out of scope) that resolves one unknown per session before `intent.md` is written.
 
 ## Quick start
 
 Requires `bash`, `git`, and coreutils, which macOS and Linux already have. On Windows, use **Git Bash** (bundled with [Git for Windows](https://gitforwindows.org/)) or WSL, and run every kit command there, including the ones your agent runs. PowerShell and cmd cannot execute the scripts.
+
+Before the first Windows command, run the [actual-shell preflight](docs/windows.md)
+for executable selection, paths with spaces, native Python and Git ownership.
+Use its proven shell context; repairs stay process-scoped to exact paths.
 
 ```bash
 # 1. Install once
@@ -160,6 +164,7 @@ Per feature, inside the **target project**:
 │   ├── plan.md                   # files · order · reach · risks · proof
 │   ├── evidence.md               # commands · outputs · observed behavior
 │   ├── delivery.md               # target · delivered source · how it was verified
+│   ├── qa-guide.md               # how a person checks it: account · menu · steps
 │   ├── summary.md                # the reader's page, kept current
 │   ├── harvest.md                # memory candidates, merged at close
 │   ├── deviations.md             # build-time differences
@@ -215,7 +220,14 @@ One delegate carries the loop; subagents are dispatched only where they buy some
 
 ### Verification runs the real thing
 
-After build, three verifier lenses run in parallel, each in a fresh context:
+After build, full work uses three fresh verifiers in parallel and a separate
+fresh adversary. The approved compact Track uses one fresh reviewer for all
+three complete lenses below, followed by the complete adversarial diff check
+on the same final source. It still reports three lens `VERDICT:` lines and the
+adversary verdict; unchanged source, recipe and upstream inputs need no repeat
+dispatch or duplicate command run. Changes require fresh affected proof and
+final diff review. Record actual session/tool IDs when exposed (otherwise
+`unknown`), input/source identities, commands, exits, logs and deciding lines.
 
 | Lens | What it checks |
 |---|---|
@@ -224,6 +236,14 @@ After build, three verifier lenses run in parallel, each in a fresh context:
 | Intent match | The build read back against `origin.md`, the ticket or 기획서 snapshot the intent gate bound: covered, missing, and beyond, per success criterion |
 
 Each requirement runs happy, boundary, and negative cases, expectations written first, for every role and platform in scope. Three **reach** scenarios per change also vary how the change is met: another caller of the same behavior (entry), a record the change did not create (state), and a condition no requirement names (context). The plan lists every caller across the repositories and tiers that call the behavior; a change that refuses input those callers send today is a contract change and trips the plan gate.
+
+Before freezing scope, stage 1 captures actual callers and accepted stored
+inputs. The Side effects lens attacks applicable missing, empty, null,
+wrong-type and unknown values: valid legacy shapes remain accepted; invalid
+ones are safely refused without crashes or partial writes. Inapplicable cases
+need domain reasons. Compact eligibility depends on risk, affected surfaces
+and reversibility, never LOC. Exact known compact probes may be run by the
+author; uncertain or broad areas need fresh researchers. Review stays fresh.
 
 Three kinds of claim carry their own proof:
 
@@ -240,6 +260,8 @@ Screens can be checked two ways. The default **agent** mode drives a browser thr
 ### "Shipped" means delivered
 
 The ship approval decides to release; it is not a release. Closing as `shipped` requires `delivery.md`: the agreed target (`local`, `pr`, or `deploy`), the delivered source, the command or project tool actually run to check the result, and its verbatim output. `close.sh` re-checks that the approved evidence and the reviewed source are unchanged, and refuses an absent, mismatching, or unconfirmed delivery. A `pr` or `deploy` `Source` must be a commit whose tree contains the reviewed source. Local work needs no production step.
+
+The last message of a delivered feature hands the human a way to check it themselves: `qa-guide.md` gives where to open it, which account and role (where the password is kept, never the password), the menu path, and numbered steps, each with what the screen should show, plus the before-fix symptom for a bug fix. The report quotes it in full, and it is archived with the feature. Steps come from what the E2E check actually drove; a step the agent did not run is marked `[not run by agent]`. A command that needs a token or key carries a placeholder and where it comes from, never the value.
 
 The ship approval binds the project's whole source snapshot as the review saw it: every tracked file plus every untracked file git does not ignore, minus `.sdlc/`, by path, content, and executable bit. Committing those exact bytes keeps the binding valid. An edit, a new file, a deletion, a chmod, or a symlink swap afterwards breaks it, even in a file the review did not name, and `check-gate.sh`, `status.sh`, and `close.sh` name the files that changed. Submodule contents are not bound. Files are hashed in batches, so a shipped close on a repository of a few thousand files takes seconds.
 
@@ -311,6 +333,9 @@ Three boundaries do not move:
 
 Full contract, drive/resume procedure, and a Symphony example: [`docs/automation.md`](docs/automation.md).
 
+For delivery-sized slices, early runnable proof, scoped quality checks, and
+efficient independent review, use the [software factory guide](docs/software-factory.md).
+
 ## Works in complex codebases
 
 sdlc-kit is a process layer, not a replacement for the project's existing rules:
@@ -319,7 +344,7 @@ sdlc-kit is a process layer, not a replacement for the project's existing rules:
 - **sdlc-kit wins on process:** stages, approval gates, evidence, memory.
 - **Existing knowledge wins:** `DOMAIN.md` points to existing glossaries, `CONTEXT.md`, and ADRs instead of copying them.
 - **Existing agents win:** local QA, browser, API, reviewer, or DB specialists execute the kit's role contract.
-- **Monorepos stay scoped:** use one `.sdlc/` per shipping unit; root only for cross-unit changes.
+- **Monorepos stay scoped:** use one `.sdlc/` per shipping unit; root only for cross-unit changes. A unit without its own store runs in the nearest one above it, never outside the loop.
 
 A genuine rule conflict is shown to the human with both texts quoted. The agent does not resolve it silently.
 
@@ -356,6 +381,7 @@ gates/           approve · check-gate · close · status · stats · selftest (
 tools/           auto · verify (needs python3) · handoff · kb · qa-mode · tripwire · refcheck · _run.py
 templates/       artifacts, memory pages, verify recipe (intent, spec, plan, evidence, area, lesson, …)
 docs/            index.html (bilingual EN/KO site) · automation.md (machine contract) · jev-qa.md
+tests/           bounded runner tests · real CLI development lifecycle E2E
 log/             release notes
 .gitattributes   pins LF endings so scripts survive a Windows clone
 ```
@@ -363,10 +389,18 @@ log/             release notes
 ## Verify the kit
 
 ```bash
-./gates/selftest.sh   # a few seconds
+bash gates/selftest.sh
+python tests/test_runner.py
+bash tests/factory-e2e.sh
 ```
 
-One smoke test for a kit that is mostly instructions. It checks that every script parses and is LF-only, every SKILL.md has valid frontmatter, a gate opens only for the approved bytes, lazymode never goes beyond its level, `dead-end` needs a lesson and `shipped` a confirmed delivery, knowledge is filed under its own product area, and the verification receipt gates ship. CI runs it on Ubuntu, macOS, and Windows (Git Bash) for pull requests, and by hand.
+The selftest checks script syntax, LF endings, skill frontmatter, gate bindings,
+lazymode, closure, knowledge records, and verification receipts. CI runs that
+selftest on Ubuntu, macOS, and Windows (Git Bash). With Python 3, the runner
+tests check bounded execution and cleanup; the factory E2E drives a real task
+CLI through a feature, bug regression, verification, and local review-branch
+delivery. These are deterministic harness checks, not agent-quality scores or
+proof of every product behavior. See the [guide](docs/software-factory.md#check-the-kit-separately-from-an-agents-performance).
 
 ## What this is not
 

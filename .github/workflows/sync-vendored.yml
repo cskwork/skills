@@ -1,6 +1,7 @@
 # Keeps skills copied from cskwork's own standalone repos in step with them.
 # Runs daily and on demand (Actions tab → Sync vendored skills → Run workflow).
 # Add a line to `matrix.include` to sync another standalone skill repo.
+# `src` is the skill folder inside the upstream repo (default: the repo root).
 name: Sync vendored skills
 
 on:
@@ -24,6 +25,14 @@ jobs:
             dest: skills/engineering/quality-loop
           - repo: cskwork/bughunt-skill
             dest: skills/engineering/bughunt
+          - repo: cskwork/sdlc-kit
+            dest: skills/engineering/sdlc-kit
+          - repo: cskwork/call-agent
+            src: skills/call-agent
+            dest: skills/agents/call-agent
+          - repo: cskwork/motion-graphics-skill
+            src: skills/motion-graphics
+            dest: skills/design/motion-graphics
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -32,7 +41,7 @@ jobs:
           path: .upstream
       - name: Copy the skill files (no README, LICENSE, or repo files)
         run: |
-          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore .upstream/ "${{ matrix.dest }}/"
+          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore ".upstream/${{ matrix.src || '.' }}/" "${{ matrix.dest }}/"
           rm -rf .upstream
       - name: Commit when changed
         run: |

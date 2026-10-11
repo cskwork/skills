@@ -67,8 +67,9 @@ explicitly (see Evidence tracking below).
 1. Run the cheap probes in `probes.md` (same directory) that match the
    symptom BEFORE dispatching researcher fan-out. Probes cost seconds and
    set direction; fan-out is for breadth the probes cannot cover.
-2. Before forming a hypothesis or offering options, run fresh-context history
-   and feasibility research under skill 1. Check whether this failure was fixed
+2. Before forming a hypothesis or offering options, establish history and
+   feasibility evidence under skill 1; exact known bounded probes may be run
+   by the author, uncertainty or breadth requires fresh research. Check whether this failure was fixed
    or reverted before, why, and whether it can be reproduced here.
 3. Reproduce the issue first, as a failing test wherever one can reach the
    defect (AGENTS.md rule 6). Draft it in `scratch/` or a disposable
@@ -145,22 +146,14 @@ standing assignments — each has caught real errors:
 
 ## Route by size
 
-Incidents use the same two routes as everything else (AGENTS.md "Two routes,
-one contract"). There is no separate compressed loop.
-
-- **Compact route.** Use it when one cause is reproduced, the changed file
-  set is known, and affected behavior is limited. Create a new
-  `.sdlc/work/<fix-slug>/` directory so prior approvals stay intact, and
-  write ONE work artifact: `intent.md` with `- Track: compact`, carrying the
-  reproduction and diagnosis as verified evidence plus the Compact route
-  section (Files · Proof · Risk · Baseline · Delivery target), and a
-  summary.md naming the product area (skills/1-intent "Write the
-  artifact"). Pass the intent gate,
-  then build and verify under skill 4, then ship. No spec.md, no plan.md, and
-  nothing downstream asks for one.
-- **Full route.** Use it for everything else — an unclear cause, a wide blast
-  radius, or risky ground. Create `.sdlc/work/<new-slug>/intent.md` from
-  `templates/intent.md` with `- Track: full` and run Stage 1.
+Read skills/1-intent "Which route: compact or full" and apply every criterion
+under AGENTS.md "Two routes, one contract". One reproduced cause, known files
+and limited affected behavior may qualify for compact; otherwise use full.
+Create a new fix-slug so prior approvals stay intact. Write intent.md from
+templates/intent.md with verified reproduction/diagnosis evidence and the chosen Track,
+plus summary.md naming the product area (skills/1-intent "Write the artifact").
+Compact fills all six Compact route fields, passes intent, then build/verify
+and ship; full runs Stage 1. No compact spec or plan is required.
 
 **Recurrence cap: three fix loops for one symptom.** Before opening a
 fix-slug, grep the symptom's tags in INDEX.md AND open features' harvests

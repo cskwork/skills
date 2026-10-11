@@ -20,7 +20,13 @@
 #
 # start / start-review options:
 #   --cd DIR         working root for codex (default: $PWD)
-#   --sandbox MODE   read-only | workspace-write | danger-full-access (start only; default read-only)
+#   --sandbox MODE   read-only | workspace-write (start only; default read-only)
+#                    danger-full-access is refused: a host agent in auto mode is blocked
+#                    from launching an unsandboxed agent ("Create Unsafe Agents"). Use
+#                    workspace-write + --network + --add-dir instead. A human running this
+#                    in a normal terminal may set CODEX_ASYNC_ALLOW_FULL_ACCESS=1.
+#   --network        allow outbound network inside workspace-write (DB, HTTP APIs)
+#   --add-dir DIR    extra writable dir besides --cd (repeatable; workspace-write)
 #   --timeout DUR    hard wall-clock cap, e.g. 5m or 300s (needs `timeout`/`gtimeout`; default OFF)
 # start-review scope (mutually exclusive, default --uncommitted):
 #   --uncommitted | --base BRANCH | --commit SHA
@@ -75,17 +81,32 @@ preflight() {
 }
 
 cmd_start() {
-  [ "$#" -ge 1 ] || die "usage: start \"<PROMPT>\" [--cd DIR] [--sandbox MODE] [--timeout DUR]"
+  [ "$#" -ge 1 ] || die "usage: start \"<PROMPT>\" [--cd DIR] [--sandbox MODE] [--network] [--add-dir DIR]... [--timeout DUR]"
   local prompt="$1"; shift
-  local cdir="$PWD" sandbox="read-only" tmout=""
+  local cdir="$PWD" sandbox="read-only" tmout="" network=""
+  local extra=()
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --cd)      cdir="${2:?--cd needs a dir}"; shift 2;;
       --sandbox) sandbox="${2:?--sandbox needs a mode}"; shift 2;;
+      --network) network=1; shift;;
+      --add-dir) [ -d "${2:?--add-dir needs a dir}" ] || die "--add-dir: no such directory: $2"
+                 extra+=(--add-dir "$2"); shift 2;;
       --timeout) tmout="${2:?--timeout needs a duration}"; shift 2;;
       *) die "unknown option: $1";;
     esac
   done
+  case "$sandbox" in
+    read-only|workspace-write) ;;
+    danger-full-access)
+      [ "${CODEX_ASYNC_ALLOW_FULL_ACCESS:-}" = 1 ] || die "danger-full-access refused (host auto mode blocks unsandboxed agents). Use: --sandbox workspace-write [--network] [--add-dir DIR]";;
+    *) die "--sandbox: unknown mode: $sandbox";;
+  esac
+  if [ -n "$network" ]; then
+    [ "$sandbox" = workspace-write ] || die "--network needs --sandbox workspace-write"
+    extra+=(-c sandbox_workspace_write.network_access=true)
+  fi
+  [ "${#extra[@]}" -eq 0 ] || [ "$sandbox" != read-only ] || die "--add-dir needs --sandbox workspace-write"
   preflight
   [ -d "$cdir" ] || die "--cd: no such directory: $cdir"
   local job; job=$(make_job_dir) && [ -d "$job" ] || die "cannot create job dir"
@@ -98,12 +119,15 @@ cmd_start() {
   # holds it open, so `JOB=$(... start ...)` would block until codex exits
   # (defeating the whole point). Redirecting the subshell's own fds closes that
   # pipe, so `start` returns the moment the foreground `echo "$job"` runs.
+  # `</dev/null` on every codex call is load-bearing too: when stdin is an open
+  # pipe, `codex exec` prints "Reading additional input from stdin..." and waits
+  # for EOF forever, so the job sits idle doing no work.
   (
     trap 'echo "$?" > "$job/rc"' EXIT
     ${TBIN[@]+"${TBIN[@]}"} codex exec --json --skip-git-repo-check \
-      --sandbox "$sandbox" -C "$cdir" \
+      --sandbox "$sandbox" -C "$cdir" ${extra[@]+"${extra[@]}"} \
       -o "$job/last.txt" "$prompt" \
-      > "$job/events.jsonl" 2> "$job/err.log"
+      < /dev/null > "$job/events.jsonl" 2> "$job/err.log"
   ) >/dev/null 2>&1 &
   echo "$!" > "$job/pid"
   echo "$job"
@@ -150,7 +174,7 @@ cmd_start_review() {
     trap 'echo "$?" > "$job/rc"' EXIT
     cd "$cdir" || exit 3
     ${TBIN[@]+"${TBIN[@]}"} codex review "${rargs[@]}" \
-      > "$job/last.txt" 2> "$job/err.log"
+      < /dev/null > "$job/last.txt" 2> "$job/err.log"
   ) >/dev/null 2>&1 &
   echo "$!" > "$job/pid"
   echo "$job"
@@ -233,7 +257,7 @@ cmd_resume() {
   [ -n "$tid" ] || die "no thread id; cannot resume"
   # `resume` inherits the original session's sandbox; it rejects --sandbox/-C.
   codex exec resume --skip-git-repo-check \
-    -o "$job/resume-last.txt" "$tid" "$prompt" >/dev/null 2>"$job/resume-err.log" \
+    -o "$job/resume-last.txt" "$tid" "$prompt" </dev/null >/dev/null 2>"$job/resume-err.log" \
     && cat "$job/resume-last.txt" \
     || { echo "codex-async: resume failed" >&2; tail -n 20 "$job/resume-err.log" >&2; return 1; }
 }

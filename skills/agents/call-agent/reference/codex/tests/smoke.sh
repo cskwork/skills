@@ -38,11 +38,23 @@ for s in scripts/codex-imagegen.sh scripts/codex-review.sh scripts/codex-async.s
   fi
 done
 
+# L1d — every codex exec/review call in the scripts closes stdin; an open pipe
+# makes codex wait for EOF forever ("Reading additional input from stdin...").
+OPEN=$(awk '/^[[:space:]]*#/ {next}
+  /^[[:space:]]*([$][{]TBIN[^ ]* )?codex (exec|review)/ {inv=1; buf=FILENAME":"FNR}
+  inv && /< ?\/dev\/null/ {inv=0}
+  inv && !/\\$/ {print buf; inv=0}' "$SCRIPT_DIR"/scripts/*.sh)
+if [ -z "$OPEN" ]; then
+  note "L1d ok: codex calls close stdin"
+else
+  fail "L1d: codex call without </dev/null at: $OPEN"
+fi
+
 # L2 — non-interactive round-trip
 if [ "${RUN_L2:-0}" = "1" ]; then
   OUTFILE=$(mktemp -t codex-smoke-XXXXXX)
   if codex exec --sandbox read-only --skip-git-repo-check \
-       -o "$OUTFILE" "Reply with exactly: OK" >/dev/null 2>&1; then
+       -o "$OUTFILE" "Reply with exactly: OK" </dev/null >/dev/null 2>&1; then
     if grep -qi 'ok' "$OUTFILE"; then
       note "L2 ok: round-trip"
     else

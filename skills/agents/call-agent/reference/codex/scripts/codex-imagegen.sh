@@ -35,12 +35,13 @@ $EXTRA
 
 Save the final PNG to $OUT. Do not return a base64 preview; just confirm the file path after saving."
 
+# </dev/null: an open stdin pipe makes `codex exec` wait for EOF forever.
 codex exec \
   --sandbox workspace-write \
   --dangerously-bypass-approvals-and-sandbox \
   --skip-git-repo-check \
   -C "$OUTDIR" \
-  "$INSTRUCTION"
+  "$INSTRUCTION" </dev/null
 
 if [ ! -s "$OUT" ]; then
   echo "codex-imagegen: no image written at $OUT" >&2
