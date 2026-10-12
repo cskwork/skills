@@ -37,7 +37,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 
 | Skill | What it does | Source |
 | --- | --- | --- |
-| [sdlc-kit](skills/engineering/sdlc-kit) | Gated SDLC loop (intent → spec → plan → build → ship → maintain) with human approvals. | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) |
+| [sdlc-kit](skills/engineering/sdlc-kit) | Four-phase SDLC loop (intent → plan → build → evidence) with human gates, adversarial review, and scored, routed proof. | [cskwork/sdlc-kit](https://github.com/cskwork/sdlc-kit) |
 | [verify-app](skills/engineering/verify-app) | Build and run the app to prove a change works end to end. For agents without a built-in verify, such as Codex. | this repo |
 | [bughunt](skills/engineering/bughunt) | Find and fix interaction bugs with seeded personas, invariant oracles, and failure replay. App profiles for games, CRUD apps, AI chat, and media; Godot, native iOS, and web adapters. | [cskwork/bughunt-skill](https://github.com/cskwork/bughunt-skill) |
 | [quality-loop](skills/engineering/quality-loop) | Product quality bar and improvement loop: scores UI/UX, function, consumer trust, and engineering against hard floors, gates release candidates with an independent judge, ratchets every fix in a ledger, and reports quality as a % (target >= 90%) with the reason for each lost point. | [cskwork/quality-loop-skill](https://github.com/cskwork/quality-loop-skill) |
