@@ -50,7 +50,7 @@ budget='623 SKILL.md
 1816 skills/6-maintain/SKILL.md
 818 roles/adversary.md
 440 roles/researcher.md
-2422 roles/verifier.md'
+2420 roles/verifier.md'
 for p in "$kit"/SKILL.md "$kit"/AGENTS.md "$kit"/skills/*/SKILL.md "$kit"/roles/*.md; do
   rel=${p#"$kit"/}
   max=$(printf '%s\n' "$budget" | awk -v f="$rel" '$2 == f { print $1 }')
@@ -90,6 +90,15 @@ d=.sdlc/work/feat-c; mkdir -p "$d"; echo goal > "$d/intent.md"; lens "$d/evidenc
 sed '$d' "$d/evidence.md" > "$t/ev"; printf 'VERDICT: <PASS>\n' >> "$t/ev"; cp "$t/ev" "$d/evidence.md"
 out=$("$kit/gates/approve.sh" ship "$d/evidence.md" 2>&1) && fail "ship approved with the Intent match VERDICT missing"
 has "$out" "no VERDICT: line under ### Intent match." "the missing lens not named alone"
+#    a reviewer report written to roles/verifier.md's template, sub-headings
+#    included, is what ship reads — pasted unchanged, it passes
+grep -q '^### <E2E | Side effects | Intent match>' "$kit/roles/verifier.md" \
+  || fail "roles/verifier.md report heading no longer matches the ship gate's lens headings"
+r=.sdlc/work/feat-r; mkdir -p "$r"; echo goal > "$r/intent.md"; : > "$r/evidence.md"
+for l in 'E2E' 'Side effects' 'Intent match'; do
+  printf '### %s\n#### Executed checks\n- ran\nVERDICT: PASS\n' "$l" >> "$r/evidence.md"
+done
+"$kit/gates/approve.sh" ship "$r/evidence.md" >/dev/null 2>&1 || fail "ship refused a report in roles/verifier.md's own layout"
 printf 'no independent verification available: no subagent in this harness\n' > "$d/evidence.md"
 "$kit/gates/approve.sh" ship "$d/evidence.md" >/dev/null || fail "ship refused over the rule-5 gap line"
 lens "$d/evidence.md"
@@ -595,9 +604,34 @@ printf 'qa_mode: robot\n' > .sdlc/config.md
 echo "ok: qa mode switch is remembered, overridable per project, and fails closed"
 }
 
+# 11. stats reads time in the order things happened: a re-approval after a later
+#     gate is no negative interval, the last receipt and CLOSED are rows, and a
+#     store with nothing archived still reports
+stats_order() {
+mkdir -p .sdlc/approvals .sdlc/work/f1
+ap() { printf 'approved_at: %s\nmode: %s\n' "$3" "$4" > "$1/$2.approval"; }
+ap .sdlc/approvals f1.intent 2026-01-01T10:00:00Z lazy
+ap .sdlc/approvals f1.plan 2026-01-01T10:30:00Z lazy
+ap .sdlc/approvals f1.spec 2026-01-01T11:00:00Z delegated-chat
+ap .sdlc/approvals f1.ship 2026-01-01T12:00:00Z lazy
+printf 'recorded_at: 2026-01-01T11:30:00Z\nresult: pass\n' > .sdlc/work/f1/verify-receipt.md
+out=$("$kit/gates/stats.sh") || fail "stats exits non-zero with no archive dir: $out"
+has "$out" "none listed" "stats did not reach re-approvals with no archive dir"
+order=$(printf '%s\n' "$out" | awk '$1 == "f1" { printf "%s:%s:%s ", $2, $4, $5 }')
+[ "$order" = "intent:—:lazy plan:0.5:lazy spec:0.5:delegated-chat proof:0.5:pass ship:0.5:lazy " ] \
+  || fail "stats rows out of time order or proof row wrong: $order"
+mkdir -p .sdlc/archive/f0/approvals
+ap .sdlc/archive/f0/approvals f0.ship 2026-01-02T09:00:00Z direct
+printf 'state: shipped\nclosed_at: 2026-01-02T10:30:00Z\nmode: delegated-chat (agent-run)\n' > .sdlc/archive/f0/CLOSED
+out=$("$kit/gates/stats.sh") || fail "stats exits non-zero with an archive: $out"
+row=$(printf '%s\n' "$out" | awk '$1 == "f0" && $2 == "close" { print $4, $5 }')
+[ "$row" = "1.5 delegated-chat" ] || fail "close row missing or wrong: $row"
+echo "ok: stats rows in time order, with proof and close"
+}
+
 # Every section at once, each in its own dir and output file; the output is
 # printed in this order, and any failed section fails the run.
-sections="basics verify_ship verify_vacuous verify_strict verify_reads verify_baseline verify_receipt_ids verify_cleanup_ids verify_close_source verify_late_source verify_gap_source source_hashing qa_mode"
+sections="basics verify_ship verify_vacuous verify_strict verify_reads verify_baseline verify_receipt_ids verify_cleanup_ids verify_close_source verify_late_source verify_gap_source source_hashing qa_mode stats_order"
 set --
 for s in $sections; do
   t="$tmp/$s"; mkdir "$t"
