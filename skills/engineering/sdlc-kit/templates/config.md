@@ -5,11 +5,15 @@ kit: <path to the kit>
 build:
 test:
 lint:
-# start the app for end-to-end scenarios, and the project's own e2e command
+# start the app for end-to-end scenarios (QA runs it detached, outliving the run), and the project's own e2e command
 run:
 e2e:
 # how QA drives the interface: a browser driver, an HTTP client, the shell; empty = whatever the agent has
 qa:
+# optional scenario runner adapter in the kit's adapters/ folder (e2e); empty = scripts in logs/scripts/
+qa_runner:
+# command that signs in for QA where the runner cannot (popup, SSO) and writes the session file it injects; empty = none
+qa_session:
 # gates a human approves: intent, plan. Plan also needs the human when PLAN.md raises a risk flag.
 human_gates: intent
 # durable knowledge: scouts read it first, Evidence adds verified facts to it
