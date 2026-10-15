@@ -7,7 +7,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/engineering/improve-codebase-architecture` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/prototype` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/retro` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
-| `skills/productivity/wait-what` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
+| `skills/productivity/wait-what` | [mattpocock/skills](https://github.com/mattpocock/skills) (modified 2026-10-15: answer in the user's language, `CONTEXT.md` fallback) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (copied 2026-10-12) | `9b58c1f` | MIT, © 2026 DietrichGebert |
