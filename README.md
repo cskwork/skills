@@ -44,6 +44,9 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [db-intelligence](skills/engineering/db-intelligence) | One skill for PostgreSQL, MySQL, SQLite, and MongoDB: detect the engine, connect credential-safe, read schema, read before writing, never write to prod. | [cskwork/pi-setup-public](https://github.com/cskwork/pi-setup-public) |
 | [sql-walkthrough](skills/engineering/sql-walkthrough) | Explain SQL/batch logic to a non-expert: numbered source lines, the real rows they read, per-line arithmetic, a results table, and an executed counter-example. | [cskwork/sql-walkthrough](https://github.com/cskwork/sql-walkthrough) |
 | [improve-codebase-architecture](skills/engineering/improve-codebase-architecture) | Find deepening opportunities, show them as an HTML report, then grill through the one you pick. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [grill-with-docs](skills/engineering/grill-with-docs) | Relentless design interview that sharpens a plan while keeping `GLOSSARY.md` and ADRs updated as decisions settle. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [domain-modeling](skills/engineering/domain-modeling) | Actively build and sharpen a project's domain model in `GLOSSARY.md` and `docs/adr/`. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [research](skills/engineering/research) | Investigate a question against primary sources in a background agent and record cited findings in Markdown. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [prototype](skills/engineering/prototype) | Build a throwaway prototype to answer a design question. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [retro](skills/engineering/retro) | Run a retrospective on a coding session. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [jk](skills/engineering/jk) | Drive Jenkins from the terminal with the `jk` CLI: jobs, runs, logs, artifacts, credentials. | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) |
@@ -54,6 +57,8 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 
 | Skill | What it does | Source |
 | --- | --- | --- |
+| [grilling](skills/productivity/grilling) | Interview the user in frontier rounds until a plan or design tree is settled with nothing silently assumed. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [attention-kind](skills/productivity/attention-kind) | Answer in the ADHD-friendly Attention-kind style: one-sentence bottom line first, arrow-marked bold points, short by default, expanding only on what is vital while preserving numbers, conditions, and warnings. | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) |
 | [wait-what](skills/productivity/wait-what) | "That last message did not land: re-pitch it." | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
