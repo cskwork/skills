@@ -7,9 +7,14 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/engineering/improve-codebase-architecture` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/prototype` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/retro` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
+| `skills/engineering/grill-with-docs` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16; modified: model-invocable by default) | `49dd158` | MIT, © 2026 Matt Pocock |
+| `skills/engineering/domain-modeling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
+| `skills/engineering/research` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
+| `skills/productivity/grilling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/wait-what` | [mattpocock/skills](https://github.com/mattpocock/skills) (modified 2026-10-15: answer in the user's language, `CONTEXT.md` fallback) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
+| `skills/productivity/attention-kind` | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) (`skills/attention-kind/`, v0.8, copied 2026-10-16; modified: model-invocable by default) | `f5b6e80` | AGPL-3.0, © 2026 alexgreensh |
 | `skills/productivity/ponytail` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (copied 2026-10-12) | `9b58c1f` | MIT, © 2026 DietrichGebert |
 | `skills/productivity/humanize-korean` | [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) (v2.3.2, copied 2026-10-14); Codex skill with agent names generalized, shared references materialized, and upstream runtime scripts bundled; see `NOTICE.md` | `b37e0206d31fffd9149bf57168d4d62eb2086bee` | MIT, © 2026 epoko77-ai |
 | `skills/design/impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) (`plugin/skills/impeccable`, v4.5.2+, copied 2026-10-12) | `c63b8dd` | Apache-2.0, see `NOTICE.md` |
