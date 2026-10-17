@@ -63,7 +63,6 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [ponytail](skills/productivity/ponytail) | Lazy-senior-dev mode: the simplest, shortest solution that actually works. | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) |
-| [humanize-korean](skills/productivity/humanize-korean) | Diagnose, rewrite, and verify Korean AI writing patterns while preserving facts and register. Standalone light, standard, and heavy routes for agents with or without collaboration tools. | [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) (shared-agent packaging) |
 
 ### Design
 
