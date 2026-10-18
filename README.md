@@ -59,7 +59,6 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | --- | --- | --- |
 | [grilling](skills/productivity/grilling) | Interview the user in frontier rounds until a plan or design tree is settled with nothing silently assumed. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [attention-kind](skills/productivity/attention-kind) | Answer in the ADHD-friendly Attention-kind style: one-sentence bottom line first, arrow-marked bold points, short by default, expanding only on what is vital while preserving numbers, conditions, and warnings. | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) |
-| [wait-what](skills/productivity/wait-what) | "That last message did not land: re-pitch it." | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [ponytail](skills/productivity/ponytail) | Lazy-senior-dev mode: the simplest, shortest solution that actually works. | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) |

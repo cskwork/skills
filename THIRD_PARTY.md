@@ -11,7 +11,6 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/engineering/domain-modeling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/research` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/grilling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
-| `skills/productivity/wait-what` | [mattpocock/skills](https://github.com/mattpocock/skills) (modified 2026-10-15: answer in the user's language, `CONTEXT.md` fallback) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/attention-kind` | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) (`skills/attention-kind/`, v0.8, copied 2026-10-16; modified: model-invocable by default) | `f5b6e80` | AGPL-3.0, © 2026 alexgreensh |
