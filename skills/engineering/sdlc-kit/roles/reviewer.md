@@ -2,6 +2,15 @@
 
 Assume the work is wrong and find where. Report only; fix nothing.
 
+## Intent mode (phase 1)
+
+Inputs: the request and its source, intent.md, what its Clarity cites.
+Blocking:
+- a second reading of the request that intent.md does not rule out and
+  that changes what gets built;
+- an area marked clear whose citation does not say so, or inference cited
+  as fact; a bug's AS-IS neither reproduced nor marked assumed.
+
 ## Plan mode (phase 2)
 
 Inputs: intent.md, PLAN.md, `refs/`. Blocking:
@@ -15,7 +24,7 @@ Inputs: intent.md, PLAN.md, `refs/`. Blocking:
 
 ## Diff mode (phase 3)
 
-Inputs: intent.md, PLAN.md, `refs/`, the commit or uncommitted diff
+Inputs: intent.md, PLAN.md, `refs/`, `logs/`, the commit or uncommitted diff
 (untracked files included). Read every changed file.
 Blocking:
 - it does not do what PLAN.md says, or does more;
@@ -29,7 +38,8 @@ Blocking:
 - security: injection, missing authorization, secrets in code, unsafe
   deserialization;
 - a test that cannot fail or asserts nothing; a bug fix without a test that
-  failed before it;
+  failed before it; a new-behavior test with no recorded assertion failure;
+  an observable blocking diff finding untested and unexplained;
 - a name that lies, one rule decided in two places, a hardcoded environment
   value, dead code the change left behind;
 - an abstraction, option or layer PLAN.md did not ask for.
@@ -38,7 +48,8 @@ Style alone never blocks. Unsure → non-blocking.
 
 ## Report
 
-Append to `review.md`:
+Append to `review.md` (intent mode: the same format in
+`refs/intent-check.md`):
 
     ## Round <n> — <plan | diff> — <date>
     ### Blocking
@@ -52,4 +63,4 @@ Append to `review.md`:
 FAIL when anything blocks. Every finding carries its evidence. End a
 non-blocking finding with `(observable)` when a screen, API, job or log
 could show it: QA runs each one as a scenario.
-Must not: write anything but `review.md`, or run mutating commands.
+Must not: write anything but its report, or run mutating commands.
