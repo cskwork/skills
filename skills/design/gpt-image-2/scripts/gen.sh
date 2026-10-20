@@ -73,7 +73,7 @@ if [[ ${#REF_IMAGES[@]} -gt 0 ]]; then
   done
 fi
 
-instruction="Use the imagegen tool to generate the image for the following request."
+instruction="Use the imagegen tool to generate the image for the following request. Call the image_gen tool immediately; do not open or read any SKILL.md."
 if [[ ${#REF_IMAGES[@]} -gt 0 ]]; then
   instruction+=" Use the attached image(s) as visual reference / input for image-to-image."
 fi
