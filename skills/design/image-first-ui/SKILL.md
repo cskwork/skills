@@ -23,6 +23,18 @@ spec.md             measured spec built from reference.png
 compare.html        reference vs build screenshot
 ```
 
+## Reference first (required)
+
+Before proposing a visual direction, generating design images, or writing UI code, complete this gate:
+
+1. **Find and inspect.** Search the web and image results for relevant visual references; open the actual pages/images, preferring originals, official sites, and reliable archives. Search snippets and remembered impressions do not establish visual facts. Ordinary interfaces need relevant layout/type/material references too. Reuse sufficient user-provided references or existing verified captures; honor an explicit no-browse request and record that limit.
+2. **Verify the subject.** For a named work, character, or brand, establish identity and version, documented gender and role where relevant, palette, silhouette, and essential motifs before adapting it. Resolve searchable basics yourself. Keep observed source facts separate from design interpretation; search ambiguity first, then ask only about unresolved choices that materially change the work. If browsing is unavailable, state the evidence gap rather than presenting recollection as verified.
+3. **Record and adapt.** In `brief.md` or the existing surface brief, record each source URL/file, observed defining traits, what to preserve, and the original adaptation. Preserve the requested concept instead of substituting generic stock imagery. When the user excludes copied logos or actor likeness, retain the concept through original composition, forms, and material cues while omitting those identifiers. Record usage/license evidence for reused assets; do not promise that an adaptation is “copyright free.”
+
+Gate complete: inspected references support the subject and direction, the brief separates observation from interpretation, and material identity or direction ambiguities are resolved. Carry the verified traits into prompts and implementation.
+
+When changing this gate, check [the regression cases](references/reference-first-cases.md).
+
 ## 1. Brief
 
 Get, or infer from the project and state: surface type and mode, primary user and their main job on this screen, real content (sample rows, labels, counts, states), target viewport, and the stack. With an existing app, take a screenshot of a representative page; it goes into every generation as `--ref` and its palette and components become the direction. Ask only what changes the images.
