@@ -88,6 +88,7 @@ These skills ship with a tool or a machine setup, so get them from their own hom
 | --- | --- | --- |
 | [verify](skills/engineering/verify) | Claude Code's own `/verify`: builds and runs your app to confirm a change does what it should. | Comes with Claude Code (v2.1.200+). Type `/verify`. |
 | ego-browser | Browser for agents that shares your logged-in sessions ([ego-lite](https://github.com/citrolabs/ego-lite)). | Install the ego lite app, or `npx skills add citrolabs/ego-lite` |
+| [teams-native-chat](https://github.com/cskwork/teams-native-chat) **Private** | Send text and clickable links through the signed-in Teams web client's native chat service, without Microsoft Graph or webhooks. | Private repository; access required. Not included in the public install. |
 | hindsight | Shared long-term memory for Claude Code, Codex, Hermes, and Pi ([hindsight-agent-setup](https://github.com/cskwork/hindsight-agent-setup)). | `curl -fsSL https://raw.githubusercontent.com/cskwork/hindsight-agent-setup/main/bootstrap.sh \| bash` |
 
 ## Toolkit
