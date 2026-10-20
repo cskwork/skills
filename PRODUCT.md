@@ -26,7 +26,7 @@ A personal, working daily kit rather than a catalog: one operating contract (AGE
 
 ## Capabilities and Constraints
 
-- 27 installable skills in four groups: engineering (15), productivity (5), design (6), agents (1).
+- 28 installable skills in four groups: engineering (15), productivity (6), design (6), agents (1).
 - 3 skills from their own home: verify (Claude Code's bundled `/verify`), ego-browser (ego lite app), and hindsight (hindsight-agent-setup).
 - System prompt: `system-prompt/AGENTS.md`, source of truth cskwork/THE-SYSTEM-PROMPT.
 - Toolkit: claude-hud, blast-radius, claude-swap, codex-auth, firebase, gws, herdr, hermes, jk.

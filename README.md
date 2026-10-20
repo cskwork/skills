@@ -62,6 +62,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [ponytail](skills/productivity/ponytail) | Lazy-senior-dev mode: the simplest, shortest solution that actually works. | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) |
+| [work-status](skills/productivity/work-status) | Report progress on the current request in numbers: items done, in progress, todo, and blocked, evidence for each done item, and an ETA for the rest. | this repo |
 
 ### Design
 

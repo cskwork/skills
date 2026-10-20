@@ -1,0 +1,3 @@
+interface:
+  display_name: "Work Status"
+  short_description: "Report done and remaining work with counts and ETA"
