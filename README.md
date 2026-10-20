@@ -94,7 +94,7 @@ These skills ship with a tool or a machine setup, so get them from their own hom
 
 ## Toolkit
 
-The CLIs around the agents: account switching, status line, Google Workspace, Firebase, Jenkins, agent runtimes, and my Pi setup. See [`toolkit/README.md`](toolkit/README.md).
+The CLIs around the agents: account switching, status line, Google Workspace, Firebase, Jenkins, agent runtimes, shell output compression (rtk), and my Pi setup. See [`toolkit/README.md`](toolkit/README.md).
 
 ## Licenses
 
