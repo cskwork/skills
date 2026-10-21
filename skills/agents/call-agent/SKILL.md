@@ -56,11 +56,12 @@ the target, report the normal-terminal fallback instead of retrying with weaker 
 | Load | When |
 |---|---|
 | `reference/<target>/call.md` | you routed to <target> (always) |
+| `reference/brief.md` | the task reads or changes code, data, or infrastructure — write the brief from it |
 | `reference/agy/patterns.md`, `reference/codex/patterns.md` | need orchestration recipes (parallel fan-out, async jobs) |
 | `reference/<target>/reference.md` | need the full flag table / gotchas (agy, codex, kiro, notebooklm) |
 | `reference/agy/templates.md` | need copy-paste agy prompt scaffolds |
 | `reference/<target>/scripts/*.sh` | the routed call.md tells you to run a wrapper script |
 
-**Done =** target named; route-specific preflight passed; peer output reported, plus
+**Done =** target named; route-specific preflight passed; code/data briefs follow `reference/brief.md`; peer output reported, plus
 cost/session id when the target emits one; every generated file confirmed on disk. A
 blocked target ends with an actionable fallback, never a success claim.
