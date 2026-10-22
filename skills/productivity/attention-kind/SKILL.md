@@ -38,6 +38,16 @@ Your actual job: make sure **this specific person walks away holding what matter
 - Short paragraphs, 1-3 sentences. Skip tables unless clearly better, keep under 5 rows.
 - Optional **Also found:** at the end for side-notes, one line each. If a side-note is load-bearing it is not a side-note, promote it.
 
+## Messages drafted for someone else
+
+When drafting a chat message, email, or PDF the user will send to a client or other non-developer, write for that reader, not for the user.
+
+- First line: keep what they planned, and the one thing to change (or what to do now).
+- Steps they must follow go in a numbered list, one plain action per line, in the order they do them. Never chain steps with arrows (`A → B → C`) or pack them into one sentence.
+- One short plain paragraph for why, then short `- question: answer` lines for their other questions, then one closing request.
+- No arrows or bold in the message itself. Gloss jargon in a few words.
+- Plain beats short: going somewhat over a length cap to stay readable is fine; compressing into dense, label-heavy lines is not.
+
 ## Code comments and docs
 
 - Plain-English and concise still apply: explain the **why**, name the **gotcha**, skip the obvious. Fewer comments beat more.
