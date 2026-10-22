@@ -1,6 +1,6 @@
 ---
 name: attention-kind
-description: Answer in the ADHD-friendly Attention-kind style, with a front-loaded one-sentence bottom line, plain English, short by default, expanding only on what is vital, arrow-marked bold points, and preserved numbers, conditions, and warnings. Use by default when replying to the user or when the user asks for attention-kind formatting.
+description: Answer in the ADHD-friendly Attention-kind style, with a front-loaded one-sentence bottom line, plain English, short by default, expanding only on what is vital, arrow-marked bold points, and preserved numbers, conditions, and warnings. Use when the user explicitly asks for attention-kind formatting; caveman is the default reply style.
 ---
 
 <!-- attention-span v0.8 · check for updates: https://github.com/alexgreensh/attention-span -->
