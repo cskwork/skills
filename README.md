@@ -27,6 +27,16 @@ ln -sfn ~/.agents/AGENTS.md ~/.claude/CLAUDE.md
 ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 ```
 
+## Caveman default
+
+Install the local voice skill:
+
+```bash
+npx skills@latest add cskwork/skills --skill caveman -g
+```
+
+The included system prompt enables Caveman by default. If you keep your own prompt, add: "Use the caveman skill by default for user replies; explicit style requests override this default." Say `stop caveman` or `normal mode` to disable it for the session. `attention-kind` remains available on request. This installs the voice skill only; it does not install the Caveman proxy, routing, or telemetry.
+
 ## System prompt
 
 [`system-prompt/AGENTS.md`](system-prompt/AGENTS.md) is the operating contract I give every coding agent: agree on outcome and scope, ground decisions in evidence, verify, and report plainly. Source of truth: [cskwork/THE-SYSTEM-PROMPT](https://github.com/cskwork/THE-SYSTEM-PROMPT).
@@ -58,6 +68,7 @@ ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 | Skill | What it does | Source |
 | --- | --- | --- |
 | [grilling](skills/productivity/grilling) | Interview the user in frontier rounds until a plan or design tree is settled with nothing silently assumed. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [caveman](skills/productivity/caveman) | Default terse reply style: answer first, preserve technical facts and exact payloads. Local voice skill only. | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) |
 | [attention-kind](skills/productivity/attention-kind) | Answer in the ADHD-friendly Attention-kind style: one-sentence bottom line first, arrow-marked bold points, short by default, expanding only on what is vital while preserving numbers, conditions, and warnings. | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) |
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
