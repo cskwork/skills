@@ -11,7 +11,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/engineering/domain-modeling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/research` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/grilling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
-| `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12) | `49dd158` | MIT, © 2026 Matt Pocock |
+| `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12; modified: verified absolute saved-path reporting) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (`skills/caveman/`, copied 2026-10-22; modified: default reply-style discovery) | `bad48a0e1df55e05e3f52249afa35ecc1909ee76` | Apache-2.0; upstream LICENSE included |
 | `skills/productivity/attention-kind` | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) (`skills/attention-kind/`, v0.8, copied 2026-10-16; modified: model-invocable by default) | `f5b6e80` | AGPL-3.0, © 2026 alexgreensh |
