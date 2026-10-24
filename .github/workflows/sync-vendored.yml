@@ -35,6 +35,8 @@ jobs:
             dest: skills/design/motion-graphics
           - repo: cskwork/update-all-skill
             dest: skills/agents/update-all
+          - repo: cskwork/sol-skill
+            dest: skills/agents/sol
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
