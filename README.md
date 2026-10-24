@@ -91,6 +91,7 @@ The included system prompt enables Caveman by default. If you keep your own prom
 | Skill | What it does | Source |
 | --- | --- | --- |
 | [call-agent](skills/agents/call-agent) | Delegate a bounded task to a peer CLI: Codex, Claude, Antigravity, Kiro, NotebookLM, ChatGPT Pro. | [cskwork/call-agent](https://github.com/cskwork/call-agent) |
+| [update-all](skills/agents/update-all) | Update all coding agent harnesses (Codex, Claude Code, pi, Antigravity CLI) in one run with before/after version reporting. | [cskwork/update-all-skill](https://github.com/cskwork/update-all-skill) |
 
 ### Installed from their own home
 

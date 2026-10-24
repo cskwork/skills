@@ -33,6 +33,8 @@ jobs:
           - repo: cskwork/motion-graphics-skill
             src: skills/motion-graphics
             dest: skills/design/motion-graphics
+          - repo: cskwork/update-all-skill
+            dest: skills/agents/update-all
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -41,7 +43,7 @@ jobs:
           path: .upstream
       - name: Copy the skill files (no README, LICENSE, or repo files)
         run: |
-          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore ".upstream/${{ matrix.src || '.' }}/" "${{ matrix.dest }}/"
+          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore --exclude docs ".upstream/${{ matrix.src || '.' }}/" "${{ matrix.dest }}/"
           rm -rf .upstream
       - name: Commit when changed
         run: |
