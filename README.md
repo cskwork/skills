@@ -68,6 +68,7 @@ The included system prompt enables Caveman by default. If you keep your own prom
 | Skill | What it does | Source |
 | --- | --- | --- |
 | [grilling](skills/productivity/grilling) | Interview the user in frontier rounds until a plan or design tree is settled with nothing silently assumed. | [mattpocock/skills](https://github.com/mattpocock/skills) |
+| [teach](skills/productivity/teach) | Teach a new skill or concept over multiple sessions in a stateful workspace (mission, glossary, resources, learning records). | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [caveman](skills/productivity/caveman) | Default terse reply style: answer first, preserve technical facts and exact payloads. Local voice skill only. | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) |
 | [attention-kind](skills/productivity/attention-kind) | Answer in the ADHD-friendly Attention-kind style: one-sentence bottom line first, arrow-marked bold points, short by default, expanding only on what is vital while preserving numbers, conditions, and warnings. | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) |
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |

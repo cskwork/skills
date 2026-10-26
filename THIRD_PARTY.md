@@ -11,6 +11,7 @@ Every vendored skill keeps its upstream license file in its own folder. Copies w
 | `skills/engineering/domain-modeling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/engineering/research` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/grilling` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-16) | `49dd158` | MIT, © 2026 Matt Pocock |
+| `skills/productivity/teach` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-26) | `ad5400b` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/handoff` | [mattpocock/skills](https://github.com/mattpocock/skills) (copied 2026-10-12; modified: verified absolute saved-path reporting) | `49dd158` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/writing-for-agents` | [mattpocock/skills](https://github.com/mattpocock/skills) | `4588b32` | MIT, © 2026 Matt Pocock |
 | `skills/productivity/caveman` | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (`skills/caveman/`, copied 2026-10-22; modified: default reply-style discovery) | `bad48a0e1df55e05e3f52249afa35ecc1909ee76` | Apache-2.0; upstream LICENSE included |
