@@ -44,8 +44,9 @@ jobs:
           repository: ${{ matrix.repo }}
           path: .upstream
       - name: Copy the skill files (no README, LICENSE, or repo files)
+        # --checksum: both checkouts share a timestamp, so a same-size edit (2.12.0 -> 2.13.0) would look unchanged.
         run: |
-          rsync -a --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore --exclude docs ".upstream/${{ matrix.src || '.' }}/" "${{ matrix.dest }}/"
+          rsync -a --checksum --delete --exclude .git --exclude .github --exclude README.md --exclude LICENSE --exclude .gitignore --exclude docs ".upstream/${{ matrix.src || '.' }}/" "${{ matrix.dest }}/"
           rm -rf .upstream
       - name: Commit when changed
         run: |
