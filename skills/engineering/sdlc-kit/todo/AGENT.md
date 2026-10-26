@@ -15,6 +15,7 @@ Run `node <kit>/todo/todo.mjs next --json` and capture its exit code.
 - `30`: stop; nothing remains to do.
 
 Never skip the first item to work a lower one, including when waiting or blocked.
+A worker that owns specific items instead of the top-down queue (for example a ticket factory) reads one with `take <id> --json`; it returns the same exit codes and `replies` as `next` and marks those replies read, so the item shows as waiting for the human again until sdlc.sh moves on.
 Use the returned `id` for mutations; a slug shared by projects is ambiguous.
 
 ## Work
@@ -32,7 +33,7 @@ For every slug, new or resumed, including work begun in chat, run `add --slug <s
 This is idempotent for the project and slug pair; retain the returned item id.
 Follow the sdlc loop, its gates and authority rules.
 After each phase, run `phase <id> <phase>` to record the current phase.
-When sdlc needs the human for a gate approval or an intent blocking question, report it and stop; `next` syncs that wait from sdlc.sh (exit 10).
+When sdlc needs the human for a gate approval or an intent Questions for you item, report it and stop; `next` syncs that wait from sdlc.sh (exit 10).
 Use `wait` only for questions sdlc.sh does not track, such as which project or a question outside an sdlc artifact.
 After `bash <kit>/sdlc.sh close ...` succeeds, run `done <id> "<result>"`.
 
