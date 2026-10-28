@@ -58,7 +58,7 @@ Explicit `/sol` sends **every** slice to Sol, UI/frontend and docs included; it 
      -o "<scratch>/<slice>.out.md" - < "<scratch>/<slice>.brief.md" > "<scratch>/<slice>.jsonl"
    ```
 
-   Block on completion notifications; never short-poll.
+   Block on completion notifications; never short-poll. Give each wait a liveness exit: when a running worker's `<slice>.jsonl` has not grown for 15 minutes, stop that worker and resume it once (step 7) instead of waiting on.
 6. **Integrate.** Read each `.out.md`, confirm `git -C "<scratch>/wt/<slice>" diff --stat <base>...` touches only owned paths, merge the slice branches into the working branch, then run the acceptance checks yourself on the merged result. Remove the worktrees when done.
 7. **Retry once, with context.** A failed slice resumes its own session instead of a cold re-brief. Take `thread_id` from the first line of `<slice>.jsonl` (`{"type":"thread.started","thread_id":...}`), write the failure evidence to `<scratch>/<slice>.fix.md`, and run from the slice directory:
 
