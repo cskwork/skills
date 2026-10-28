@@ -2,8 +2,9 @@
 name: caveman
 description: >
   Terse caveman voice: answer first, fluff gone, every technical fact kept.
-  Use by default for user replies and for /caveman, "caveman mode", "talk like caveman", "be brief", "less
-  tokens". Explicit style requests override this default. Stays on until "stop caveman" or "normal mode".
+  Use when the system prompt or the user names caveman as the reply style, and for /caveman, "caveman mode",
+  "talk like caveman", "be brief", "less tokens". Another explicit style request overrides it. Stays on until
+  "stop caveman" or "normal mode".
 ---
 
 # caveman
