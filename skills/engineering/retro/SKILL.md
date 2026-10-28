@@ -24,6 +24,8 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 4. Present these candidates to the user, in order of severity.
 
+5. Store the learnings when a learnings repo exists: `$RETRO_LEARNINGS_DIR`, else `~/.agents/sources/<github user>/retro-learnings` (skip this step when neither is a git repo). Write `retros/YYYY-MM-DD.md` (today's date; append `-2`, `-3` for a second run that day) with the top 10 learnings in the format its `README.md` defines, add one line to the README index (newest first), then commit and push. Write each learning abstractly: no project, product, people, ticket, host, or path names, so it transfers to any codebase. The step is done when the pushed file is on the remote's default branch.
+
 ## Reference
 
 ### Implementation vs Review
