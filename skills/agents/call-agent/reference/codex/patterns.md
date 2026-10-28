@@ -90,11 +90,11 @@ A=./scripts/codex-async.sh
 
 # 1. Start — returns a JOB_DIR immediately, runs codex in the background
 JOB=$("$A" start "Audit this repo for N+1 queries and write findings" \
-        --cd "$PWD" --sandbox read-only --timeout 10m)
+        --cd "$PWD" --sandbox read-only --timeout 30m --stall 600)
 
 # 2. Do other work here... then poll (non-blocking) or block with a cap
-"$A" status "$JOB"        # running | done rc=0 | timeout | missing
-"$A" wait   "$JOB" 600    # block until done, or until 600s elapse
+"$A" status "$JOB"        # running | stalled idle=<sec>s | done rc=0 | timeout | missing
+"$A" wait   "$JOB" 540    # done/cap: exit 0; stalled: exit 3 (handle under set -e)
 
 # 3. Collect the final assistant message once finished
 "$A" result "$JOB"
@@ -102,14 +102,86 @@ JOB=$("$A" start "Audit this repo for N+1 queries and write findings" \
 # 4. Cancel a runaway job (targeted pid kill + its children; never pkill -f)
 "$A" stop   "$JOB"
 
-# 5. Continue the SAME session (keeps prior context)
-"$A" resume "$JOB" "Now propose a fix for the worst offender"
 ```
+
+`--stall SECS` is a positive integer output-idle limit, default **600 seconds**.
+`CODEX_ASYNC_STALL`, when set, overrides the option; the selected limit is saved
+in the job. Start time and each output file's mtime/size track liveness, including
+a job that never emits its first event. A live PID with unchanged output becomes
+`stalled idle=<sec>s`; `wait` prints that state and returns **3** before its cap.
+Stall detection leaves the process running until the host calls `stop`.
+
+**Monitor (copy-paste, Bash):** the host's own loop must exit after **10 minutes
+with unchanged output**, then stop and report. A PID check alone is insufficient.
+This loop exits on `done|timeout|stalled|missing` and independently checks all three
+output files even when the wrapper's stall threshold is longer than 10 minutes.
+
+```bash
+A=./scripts/codex-async.sh
+# JOB must be the job directory returned by start/start-review.
+previous=""
+changed=$(date +%s)
+until
+  state=$("$A" status "$JOB") || exit $?
+  case "$state" in
+    "done rc="*|timeout|stalled*|missing) true ;;
+    running) false ;;
+    *) printf 'Unexpected job state: %s\n' "$state" >&2; exit 2 ;;
+  esac
+do
+  snapshot=$(python3 - "$JOB" <<'PY'
+import sys
+from pathlib import Path
+for name in ("err.log", "events.jsonl", "last.txt"):
+    try:
+        stat = (Path(sys.argv[1]) / name).stat()
+        print(name, stat.st_mtime_ns, stat.st_size)
+    except FileNotFoundError:
+        print(name, "missing")
+PY
+  ) || exit $?
+  now=$(date +%s)
+  if [ "$snapshot" != "$previous" ]; then
+    previous="$snapshot"
+    changed="$now"
+  fi
+  if [ "$((now - changed))" -ge 600 ]; then
+    state="stalled idle=$((now - changed))s"
+    break
+  fi
+  sleep 30
+done
+printf '%s\n' "$state"
+case "$state" in
+  "done rc=0") "$A" result "$JOB" ;;
+  stalled*)
+    "$A" stop "$JOB" || exit $?
+    printf 'Job stalled; stopped. Report the blocker and log paths: %s\n' "$JOB" >&2
+    exit 3 ;;
+  *) printf 'Job ended without success; report: %s (%s)\n' "$state" "$JOB" >&2; exit 1 ;;
+esac
+```
+
+**Recovery: stop + one resume.** After stopping and reporting, an exec job with
+a recorded thread ID can resume the same session **once**. Check `id` first;
+if startup never emitted an ID, or this is a review job, report that resume is
+unavailable. Resume is synchronous, so bound it too (`timeout` is required below;
+on macOS use `gtimeout` if that is the installed binary):
+
+```bash
+"$A" stop "$JOB" || exit $?
+"$A" id "$JOB" || exit $?  # no ID means no resume
+timeout 10m "$A" resume "$JOB" "Continue once; report the startup blocker first"
+```
+
+If that attempt fails or reaches its 10-minute cap, stop and report. Do not
+repeat resume or widen the sandbox. The original job's status describes the
+original run; resumed output is in `resume-last.txt` / `resume-err.log`.
 
 Why a wrapper and not a bare `&`: it captures the codex `thread_id` (for
 `resume`), records the real exit code so `status` never guesses, writes
 the final message to a file you can read later, applies an optional hard
-`--timeout` (codex has no native one), and exposes a `stop` that kills by
+`--timeout` (codex has no native one), detects output stalls, and exposes a `stop` that kills by
 recorded pid instead of a broad `pkill -f` pattern sweep (the kind that
 hits a permission prompt). Jobs live under `~/.codex/async-jobs/` (override
 with `CODEX_ASYNC_HOME`) so you can poll them from any later turn; they do

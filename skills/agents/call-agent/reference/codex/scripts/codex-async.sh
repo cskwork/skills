@@ -11,8 +11,8 @@
 # Subcommands:
 #   start        "<PROMPT>" [opts]   launch `codex exec` in background, print JOB_DIR
 #   start-review [SCOPE] [opts] [P]  launch `codex review` in background, print JOB_DIR
-#   status <JOB_DIR>                 running | done rc=<n> | timeout | missing
-#   wait   <JOB_DIR> [secs]          block until done (or until secs elapse)
+#   status <JOB_DIR>                 running | stalled idle=<n>s | done rc=<n> | timeout | missing
+#   wait   <JOB_DIR> [secs]          block until done, stalled, or secs elapse
 #   result <JOB_DIR>                 final message / review markdown (once done)
 #   stop   <JOB_DIR>                 terminate a running job (targeted kill, no pkill)
 #   id     <JOB_DIR>                 codex thread/session id (exec jobs only)
@@ -28,10 +28,11 @@
 #   --network        allow outbound network inside workspace-write (DB, HTTP APIs)
 #   --add-dir DIR    extra writable dir besides --cd (repeatable; workspace-write)
 #   --timeout DUR    hard wall-clock cap, e.g. 5m or 300s (needs `timeout`/`gtimeout`; default OFF)
+#   --stall SECS     output-idle limit (positive integer; default 600; CODEX_ASYNC_STALL overrides)
 # start-review scope (mutually exclusive, default --uncommitted):
 #   --uncommitted | --base BRANCH | --commit SHA
 #
-# Exit codes: 0 ok, 2 setup/usage error.
+# Exit codes: 0 ok (including wait cap), 2 setup/usage error, 3 wait detected a stall.
 set -uo pipefail
 
 die() { echo "codex-async: $*" >&2; exit 2; }
@@ -80,10 +81,68 @@ preflight() {
   [ -f "$HOME/.codex/auth.json" ] || die "no codex auth. Run: codex login"
 }
 
+# Persist each output's mtime AND size: a same-size rewrite or a write that
+# preserves mtime still counts. Polling itself must never refresh liveness.
+# Python is already required for thread-id extraction; os.stat works on both
+# macOS and Linux without incompatible stat flags.
+activity_idle() {
+  python3 - "$1" <<'PY'
+import json, os, sys, tempfile, time
+from pathlib import Path
+
+job = Path(sys.argv[1])
+try:
+    started = job / "started"
+    # Jobs launched before stall tracking have only a pid timestamp.
+    start = int(started.read_text()) if started.exists() else (job / "pid").stat().st_mtime
+    outputs = {}
+    for name in ("err.log", "events.jsonl", "last.txt"):
+        try:
+            stat = (job / name).stat()
+        except FileNotFoundError:
+            continue
+        outputs[name] = [stat.st_mtime_ns, stat.st_size]
+    state = job / "activity.json"
+    previous = json.loads(state.read_text()) if state.exists() else {"outputs": {}, "last": start}
+    last = max(start, previous["last"], *(value[0] / 1e9 for value in outputs.values()))
+    for name, value in outputs.items():
+        old = previous["outputs"].get(name)
+        if old and value[0] == old[0] and value[1] != old[1]:
+            last = time.time()
+    current = {"outputs": outputs, "last": last}
+    if current != previous or not state.exists():
+        fd, temporary = tempfile.mkstemp(prefix=".activity-", dir=job)
+        try:
+            with os.fdopen(fd, "w") as output:
+                json.dump(current, output)
+            os.replace(temporary, state)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+    print(max(0, int(time.time() - last)))
+except Exception as error:
+    print(f"codex-async: cannot track activity: {error}", file=sys.stderr)
+    sys.exit(2)
+PY
+}
+
+validate_stall() {
+  case "$1" in
+    ""|*[!0-9]*) die "--stall / CODEX_ASYNC_STALL needs positive integer seconds";;
+  esac
+  [ "$1" -gt 0 ] 2>/dev/null || die "--stall / CODEX_ASYNC_STALL needs positive integer seconds"
+}
+
+init_activity() {
+  date +%s > "$1/started" || die "cannot record job start"
+  printf '%s\n' "$2" > "$1/stall" || die "cannot record stall limit"
+  activity_idle "$1" >/dev/null || die "cannot initialize activity tracking"
+}
+
 cmd_start() {
-  [ "$#" -ge 1 ] || die "usage: start \"<PROMPT>\" [--cd DIR] [--sandbox MODE] [--network] [--add-dir DIR]... [--timeout DUR]"
+  [ "$#" -ge 1 ] || die "usage: start \"<PROMPT>\" [--cd DIR] [--sandbox MODE] [--network] [--add-dir DIR]... [--timeout DUR] [--stall SECS]"
   local prompt="$1"; shift
-  local cdir="$PWD" sandbox="read-only" tmout="" network=""
+  local cdir="$PWD" sandbox="read-only" tmout="" network="" stall=600
   local extra=()
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -93,9 +152,13 @@ cmd_start() {
       --add-dir) [ -d "${2:?--add-dir needs a dir}" ] || die "--add-dir: no such directory: $2"
                  extra+=(--add-dir "$2"); shift 2;;
       --timeout) tmout="${2:?--timeout needs a duration}"; shift 2;;
+      --stall) [ "$#" -ge 2 ] || die "--stall needs seconds"
+               stall="$2"; shift 2;;
       *) die "unknown option: $1";;
     esac
   done
+  stall="${CODEX_ASYNC_STALL-$stall}"
+  validate_stall "$stall"
   case "$sandbox" in
     read-only|workspace-write) ;;
     danger-full-access)
@@ -111,6 +174,7 @@ cmd_start() {
   [ -d "$cdir" ] || die "--cd: no such directory: $cdir"
   local job; job=$(make_job_dir) && [ -d "$job" ] || die "cannot create job dir"
   printf '%s' "$prompt" > "$job/prompt.txt"
+  init_activity "$job" "$stall"
   build_tbin "$tmout"
   # EXIT trap records the exit code UNCONDITIONALLY so `status` can always tell
   # a finished job from one that crashed at launch.
@@ -134,7 +198,7 @@ cmd_start() {
 }
 
 cmd_start_review() {
-  local cdir="$PWD" tmout="" prompt=""
+  local cdir="$PWD" tmout="" prompt="" stall=600
   local scope=()
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -143,11 +207,15 @@ cmd_start_review() {
       --commit)      scope=(--commit "${2:?--commit needs a sha}"); shift 2;;
       --cd)          cdir="${2:?--cd needs a dir}"; shift 2;;
       --timeout)     tmout="${2:?--timeout needs a duration}"; shift 2;;
+      --stall)       [ "$#" -ge 2 ] || die "--stall needs seconds"
+                     stall="$2"; shift 2;;
       --) shift; prompt="${*:-}"; break;;
       -*) die "unknown option: $1";;
       *) prompt="$*"; break;;   # all remaining words are the prompt (keep flags first)
     esac
   done
+  stall="${CODEX_ASYNC_STALL-$stall}"
+  validate_stall "$stall"
   preflight
   [ -d "$cdir" ] || die "--cd: no such directory: $cdir"
   # codex 0.135.0: a scope flag and a free-text PROMPT are mutually exclusive.
@@ -165,6 +233,7 @@ cmd_start_review() {
   local job; job=$(make_job_dir) && [ -d "$job" ] || die "cannot create job dir"
   printf 'review %s' "${rargs[*]}" > "$job/prompt.txt"
   echo review > "$job/kind"
+  init_activity "$job" "$stall"
   build_tbin "$tmout"
   # `codex review` has no --json and no -o: it writes markdown to stdout, which
   # we capture to last.txt so `result` can read it. It reads the repo at cwd
@@ -189,25 +258,34 @@ cmd_status() {
     echo "done rc=$rc"; return 0
   fi
   local pid; pid=$(cat "$job/pid" 2>/dev/null || echo "")
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then echo "running"; else echo "done rc=?"; fi
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    local stall=600 idle
+    if [ -f "$job/stall" ]; then stall=$(cat "$job/stall") || die "cannot read stall limit"; fi
+    validate_stall "$stall"
+    idle=$(activity_idle "$job") || return 2
+    if [ "$idle" -ge "$stall" ]; then echo "stalled idle=${idle}s"; else echo "running"; fi
+  else
+    echo "done rc=?"
+  fi
 }
 
 cmd_wait() {
   local job="${1:?usage: wait <JOB_DIR> [secs]}"
   local cap="${2:-0}" waited=0
   [ -d "$job" ] || die "no such job dir: $job"
-  local pid; pid=$(cat "$job/pid" 2>/dev/null || echo "")
-  while [ ! -f "$job/rc" ]; do
-    # Abnormal exit: process gone but no rc written — stop instead of looping.
-    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
-      echo "wait: job process exited without recording rc" >&2; break
+  local state
+  while :; do
+    state=$(cmd_status "$job") || return $?
+    case "$state" in
+      stalled*) echo "$state"; return 3;;
+      running) ;;
+      *) echo "$state"; return 0;;
+    esac
+    if [ "$cap" -gt 0 ] && [ "$waited" -ge "$cap" ]; then
+      echo "wait: still running after ${cap}s" >&2; echo "$state"; return 0
     fi
     sleep 2; waited=$((waited + 2))
-    if [ "$cap" -gt 0 ] && [ "$waited" -ge "$cap" ]; then
-      echo "wait: still running after ${cap}s" >&2; cmd_status "$job"; return 0
-    fi
   done
-  cmd_status "$job"
 }
 
 cmd_result() {
@@ -273,7 +351,7 @@ main() {
     stop)         cmd_stop         "$@";;
     id)           cmd_id           "$@";;
     resume)       cmd_resume       "$@";;
-    ""|-h|--help) sed -n '2,32p' "$0";;
+    ""|-h|--help) sed -n '2,/^set -uo pipefail/{ /^set -uo pipefail/d; p; }' "$0";;
     *) die "unknown subcommand: $sub (try --help)";;
   esac
 }

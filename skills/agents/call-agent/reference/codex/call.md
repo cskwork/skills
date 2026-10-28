@@ -83,7 +83,7 @@ to `--wait` seconds (default 540) for the result. A review that outlasts the cap
 keeps running detached — you poll/stop it instead of the call hanging forever:
 
 ```bash
-./scripts/codex-async.sh status "$JOB"   # running | done rc=0 | timeout
+./scripts/codex-async.sh status "$JOB"   # running | stalled idle=<sec>s | done rc=0 | timeout | missing
 ./scripts/codex-async.sh result "$JOB"   # the review markdown, once done
 ./scripts/codex-async.sh stop   "$JOB"   # cancel (targeted kill, never pkill)
 ```
@@ -139,20 +139,40 @@ it returns. For a long job you want to start now and collect later, use the
 async wrapper:
 
 ```bash
-JOB=$(./scripts/codex-async.sh start "<LONG TASK>" --sandbox read-only --timeout 10m)
+JOB=$(./scripts/codex-async.sh start "<LONG TASK>" --sandbox read-only --timeout 30m --stall 600)
 # writes + DB/HTTP: --sandbox workspace-write --cd DIR [--add-dir DIR] --network
-./scripts/codex-async.sh status "$JOB"     # running | done rc=0 | timeout
-./scripts/codex-async.sh wait   "$JOB" 600 # block until done (cap 600s)
+./scripts/codex-async.sh status "$JOB"     # running | stalled idle=<sec>s | done rc=0 | timeout | missing
+./scripts/codex-async.sh wait   "$JOB" 540 # done/cap: exit 0; stalled: exit 3
 ./scripts/codex-async.sh result "$JOB"     # final message once finished
 ./scripts/codex-async.sh stop   "$JOB"     # cancel a runaway job (targeted kill)
-./scripts/codex-async.sh resume "$JOB" "<FOLLOW-UP>"  # continue same session
 ```
+
+`start` and `start-review` record the start time and watch `err.log`,
+`events.jsonl`, and `last.txt` for mtime or size changes. A live PID with no
+output change for **600 seconds** becomes `stalled idle=<sec>s`; `wait` prints
+that state and exits **3**, even before its caller cap. `--stall SECS` sets a
+positive integer limit; `CODEX_ASYNC_STALL`, when set, overrides that option.
+The limit is saved with the job, so later polls need no environment override.
+Stall detection does not kill the process. Completion/timeout take precedence.
+
+**Hosts must check output liveness in their own wait loops too:** after
+**10 minutes with unchanged output**, exit the loop, stop the job, and report.
+Do not keep polling just because the PID exists or status contains `running`.
+Use the copy-paste **Monitor** until-loop in [Pattern 6](patterns.md#pattern-6--long-running--async-job-dont-block-the-host);
+it exits on `done`, `timeout`, `stalled`, or `missing` and also checks output
+independently of the wrapper's configured threshold.
+
+Recovery: **stop, report, then at most one resume** of an exec job with a
+recorded thread ID (`id "$JOB"`). See Pattern 6 for the bounded resume command.
+If no thread ID was emitted, resume is unavailable; report that explicitly.
+Review jobs have no thread ID. If the resume stalls or fails, stop and report
+the blocker; never retry in a loop or broaden permissions.
 
 `start-review` is the same machinery for `codex review` (see Code review above).
 `stop` terminates by the recorded pid + its children — never `pkill -f`, so it
 does not trip the broad-kill permission prompt.
 
-The job is a temp dir; poll it from any later turn. See `patterns.md`
+The job directory persists under `~/.codex/async-jobs/`; poll it from any later turn. See `patterns.md`
 Pattern 6 for the full recipe.
 
 ## See also

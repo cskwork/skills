@@ -82,6 +82,11 @@ case "$ST" in
     "$ASYNC" result "$JOB" 2>/dev/null || true
     exit 124
     ;;
+  stalled*)
+    echo "codex-review: $ST — stop the job and report; do not keep waiting" >&2
+    echo "  stop: $ASYNC stop $JOB" >&2
+    exit 3
+    ;;
   "done rc="*)
     echo "codex-review: review exited ${ST#done }" >&2
     "$ASYNC" result "$JOB" 2>/dev/null || true

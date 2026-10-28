@@ -7,12 +7,21 @@ FAIL=0
 note() { printf '[%s] %s\n' "$SKILL" "$*"; }
 fail() { printf '[%s] FAIL: %s\n' "$SKILL" "$*" >&2; FAIL=1; }
 
+# Offline regressions run even when the real CLI is not installed.
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if python3 "$SCRIPT_DIR/tests/test-async.py"; then
+  note "L1e ok: async stall regression harness"
+else
+  fail "L1e: async stall regression harness"
+fi
+
 # L0 — binary present
 if command -v codex >/dev/null 2>&1; then
   V=$(codex --version 2>&1 | head -1)
   note "L0 ok: codex $V"
 else
   note "L0 skip: codex not on PATH — install to test"
+  [ "$FAIL" = 0 ] || exit "$FAIL"
   exit 3
 fi
 
@@ -29,7 +38,6 @@ else
   note "L1b warn: no ~/.codex/auth.json — run \`codex login\`"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 for s in scripts/codex-imagegen.sh scripts/codex-review.sh scripts/codex-async.sh; do
   if bash -n "$SCRIPT_DIR/$s"; then
     note "L1c ok: $s syntax"
