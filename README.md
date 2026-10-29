@@ -106,6 +106,12 @@ These skills ship with a tool or a machine setup, so get them from their own hom
 | [teams-native-chat](https://github.com/cskwork/teams-native-chat) | Send text and clickable links through the signed-in Teams web client's native chat service, without Microsoft Graph or webhooks. | Install from the linked standalone repository. |
 | hindsight | Shared long-term memory for Claude Code, Codex, Hermes, and Pi ([hindsight-agent-setup](https://github.com/cskwork/hindsight-agent-setup)). | `curl -fsSL https://raw.githubusercontent.com/cskwork/hindsight-agent-setup/main/bootstrap.sh \| bash` |
 
+## Private skills
+
+| Skill | What it does | Access |
+| --- | --- | --- |
+| [cswap-auth](https://github.com/cskwork/agent-skills-private/tree/main/skills/cswap-auth) | Authenticate Claude Code accounts through Ego Lite, renew OAuth credentials, register with cswap, and verify account health. | Private repository; access required. Not included in the public install. |
+
 ## Toolkit
 
 The CLIs around the agents: account switching, status line, Google Workspace, Firebase, Jenkins, agent runtimes, shell output compression (rtk), and my Pi setup. See [`toolkit/README.md`](toolkit/README.md).
