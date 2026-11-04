@@ -44,6 +44,10 @@ const visible = state => (state.items || []).filter(item => !item.done || state.
 const selected = state => visible(state)[state.selected || 0];
 const waiting = item => item?.status === 'waiting';
 const fixMessage = (t, launch) => launch.startsWith('failed: ') ? t('fix.failed', { reason: launch.slice(8) }) : t(launch === 'started' ? 'fix.started' : 'fix.queued');
+// Offered one-click answers of an open item: number keys send them as a reply.
+const choicesOf = item => !item || item.done ? [] : item.choices || [];
+const choiceText = (item, t) => t('tui.choices', { list: choicesOf(item).map((label, i) =>
+  `${i + 1} ${label}${item.pick === i + 1 ? ` (${t('choices.recommended')})` : ''}`).join(' · ') });
 const fixable = item => item?.status === 'blocked' && !item.error && !item.done;
 const textOf = state => translator(state.lang || defaultLanguage);
 // What the human is asked to do: the explicit wait, else the sdlc action, else the generic step.
@@ -58,17 +62,19 @@ const webText = (state, t) => state.webUrl || (state.webError ? t('tui.webOffBec
 function detailLines(item, t) {
   const [glyph, , label] = status(item, t);
   return [item.title, `${glyph} ${label} · ${item.id}`, t('tui.field.project', { value: item.project || '—' }),
+    t('tui.field.repos', { value: item.repos?.length ? item.repos.join(', ') : '—' }),
     t('tui.field.link', { value: item.link?.url || '—' }), t('tui.field.sdlc', { value: item.sdlc?.slug || '—' }),
     t('tui.field.phase', { phase: item.sdlc?.phase ? phaseLabel(t, item.sdlc.phase) : '—', state: item.sdlc?.state || '—' }),
     t('tui.field.action', { value: item.error || item.sdlc?.action || '—' }),
     t('tui.field.next', { value: waiting(item) ? waitText(item, t) : '—' }),
     ...(waiting(item) ? [t('tui.decideInBrowser')] : []),
+    ...(choicesOf(item).length ? [choiceText(item, t)] : []),
     ...(item.done ? [t('tui.field.done', { value: doneTime(item) || '—' })] : []), '', t('tui.history'),
     ...(item.events || []).map(e => `${e.at} ${e.who}: ${e.what}`), '', t('tui.notes'), ...(item.notes || [])];
 }
 const helpKeys = [['↑ ↓ / j k', 'select', 'g G', 'ends'], ['a', 'add', 'Enter', 'details'], ['e', 'edit', 'x / Space', 'done'],
   ['d', 'delete', 'u', 'undo'], ['J K', 'move', 'Tab', 'showDone'], ['r', 'reply', 'o', 'link'], ['w', 'web', 'R', 'sync'],
-  ['L', 'language', 'q / Ctrl+C', 'quit'], ['f', 'fix', 'Esc', 'back']];
+  ['L', 'language', 'q / Ctrl+C', 'quit'], ['f', 'fix', 'Esc', 'back'], ['1-6', 'choose']];
 function help(t) {
   const pad = (text, size) => text + ' '.repeat(Math.max(0, size - widthOf(text)));
   const cells = helpKeys.map(([key, label, ...rest]) => [`${key}  ${t(`tui.help.${label}`)}`, rest.length ? `${rest[0]}  ${t(`tui.help.${rest[1]}`)}` : '']);
@@ -112,7 +118,7 @@ export function render(state, { width = 80, height = 24, color = false } = {}) {
       if (active) selectionRow = rows.length;
       const [glyph, code, label] = status(current, t), prefix = `${active ? '›' : ' '} ${glyph} `;
       const project = clean(current.project || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop();
-      const meta = clean(current.done ? doneTime(current) : [project, current.link?.label ||
+      const meta = clean(current.done ? doneTime(current) : [project, current.repos?.join(', '), current.link?.label ||
         (current.link?.url ? core.linkLabel(current.link.url) : ''), current.sdlc?.phase && phaseLabel(t, current.sdlc.phase)].filter(Boolean).join(' · '));
       const showMeta = meta && width >= 72 && widthOf(meta) <= Math.floor(width / 3);
       const title = clip(current.title, width - widthOf(prefix) - (showMeta ? widthOf(meta) + 2 : 0));
@@ -121,6 +127,7 @@ export function render(state, { width = 80, height = 24, color = false } = {}) {
       rows.push(row);
       if (current === stop) rows.push(paint(clip(`    ${t(`stop.${statusOf(current).actor}`)}`, width), code));
       if (waiting(current)) rows.push(paint(clip(`    ${waitText(current, t)} · ${t('tui.decideInBrowser')}`, width), '2'));
+      if (choicesOf(current).length) rows.push(paint(clip(`    ${choiceText(current, t)}`, width), '2'));
       if (current.status === 'blocked') rows.push(paint(clip(`    ${t('tui.blockedRow', { reason: current.error || current.sdlc?.action || t('row.unknownError') })}`, width), code));
       if (current.done && !showMeta) rows.push(paint(clip(`    ${t('tui.doneRow', { at: doneTime(current) })}`, width), '2'));
     }
@@ -212,6 +219,7 @@ export function reduce(state, key) {
     if (key === 'Enter') { next.view = 'details'; next.detailOffset = 0; }
     else if (key === 'e') next.input = { kind: 'edit', id: item.id, item, text: item.title, cursor: chars(item.title).length };
     else if (key === 'r' && waiting(item)) next.input = { kind: 'reply', id: item.id, item, text: '', cursor: 0 };
+    else if (/^[1-6]$/.test(key) && choicesOf(item)[key - 1]) effect('reply', { id: item.id, item, text: choicesOf(item)[key - 1] });
     else if (key === 'f' && fixable(item)) effect('fix', { id: item.id, item });
     else if (key === 'x' || key === ' ') effect('done', { id: item.id, item, done: !item.done });
     else if (key === 'd') next.confirm = item;
