@@ -144,6 +144,56 @@ test('S1/S4/S12: CLI writes readable fields, Jira labels, and ordered agent hist
   assert.match(text, /agent: done — PR #12/);
 });
 
+test('repos: CLI records the changed repositories once, JSON shows them, a bad hand edit still loads', async t => {
+  const { file } = scratch(t);
+  const id = checkCode(await cli(file, ['add', 'A20-1 fix', '--by', 'factory']), 0).stdout.trim();
+  checkCode(await cli(file, ['repos', id, 'aidt-lms-api,aidt-viewer-api']), 0);
+  checkCode(await cli(file, ['repos', id, 'aidt-lms-api, aidt-viewer-api']), 0);
+  let text = readFileSync(file, 'utf8');
+  assert.match(text, /^  - repos: aidt-lms-api, aidt-viewer-api$/m);
+  assert.equal(text.split('agent: repos ').length - 1, 1, 'same list adds no second event');
+  const listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout);
+  assert.deepEqual(listed[0].repos, ['aidt-lms-api', 'aidt-viewer-api']);
+  checkCode(await cli(file, ['repos', id, 'bad name;rm']), 2);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('aidt-viewer-api', 'aidt-viewer-api, $bad'));
+  assert.deepEqual(core.load(file).items[0].repos, ['aidt-lms-api', 'aidt-viewer-api']);
+  checkCode(await cli(file, ['repos', id]), 0);
+  assert.doesNotMatch(readFileSync(file, 'utf8'), /^  - repos:/m);
+});
+
+test('choices: CLI stores one-click answers and a pick, adds one event per change, clears, refuses bad input', async t => {
+  const { file } = scratch(t);
+  const id = checkCode(await cli(file, ['add', '[결정 D35] A20-1462 · how to proceed', '--by', 'factory']), 0).stdout.trim();
+  const untouched = readFileSync(file, 'utf8');
+  assert.equal(core.serialize(core.load(file)), untouched, 'a file without choices round-trips byte for byte');
+  checkCode(await cli(file, ['choices', id, ' 원래 있던 실패로 보고 진행 | 심사 시험부터 고친 뒤 진행 |보류 ', '--pick', '1']), 0);
+  checkCode(await cli(file, ['choices', id, '원래 있던 실패로 보고 진행|심사 시험부터 고친 뒤 진행|보류', '--pick', '1']), 0);
+  let text = readFileSync(file, 'utf8');
+  assert.match(text, /^  - choices: 원래 있던 실패로 보고 진행 \| 심사 시험부터 고친 뒤 진행 \| 보류\n  - pick: 1$/m);
+  assert.equal(text.split('agent: choices ').length - 1, 1, 'the same list adds no second event');
+  assert.equal(core.serialize(core.load(file)), text, 'a file with choices round-trips byte for byte');
+  for (const command of [['list', '--json'], ['take', id, '--json']]) {
+    const json = JSON.parse(checkCode(await cli(file, command), 0).stdout);
+    const summary = Array.isArray(json) ? json[0] : json;
+    assert.deepEqual(summary.choices, ['원래 있던 실패로 보고 진행', '심사 시험부터 고친 뒤 진행', '보류']);
+    assert.equal(summary.pick, 1);
+  }
+  for (const args of [['a||b'], ['a | b', '--pick', '3'], ['a | b', '--pick', '0'], ['1|2|3|4|5|6|7'], ['--pick', '1'], ['a\nb']]) {
+    checkCode(await cli(file, ['choices', id, ...args]), 2);
+  }
+  assert.equal(readFileSync(file, 'utf8'), text, 'refused input changes nothing');
+  checkCode(await cli(file, ['choices', id, 'a | b']), 0);
+  assert.deepEqual([core.load(file).items[0].choices, core.load(file).items[0].pick], [['a', 'b'], null]);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('  - choices: a | b', '  - choices: a |  | b\n  - pick: 9'));
+  assert.deepEqual([core.load(file).items[0].choices, core.load(file).items[0].pick], [['a', 'b'], null], 'a bad hand edit still loads');
+  checkCode(await cli(file, ['choices', id]), 0);
+  text = readFileSync(file, 'utf8');
+  assert.doesNotMatch(text, /^  - (choices|pick):/m);
+  assert.match(text, /agent: choices cleared$/m);
+  const listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout);
+  assert.deepEqual([listed[0].choices, listed[0].pick], [[], null]);
+});
+
 test('S5: next stops at the first wait, exposes a human reply, and returns 30 when empty', async t => {
   const { file } = scratch(t);
   const a = await core.add(file, 'A');
@@ -978,4 +1028,46 @@ test('todo-agent.json starts the human-configured fix command with placeholders 
   writeFileSync(join(root, 'todo-agent.json'), JSON.stringify({ fix: 'not an array' }));
   const bad = await core.requestFix(file, item.id, undefined, { kit });
   assert.match(bad.launch, /^failed: .*fix must be a non-empty array/);
+});
+
+test('brief: an item carries a markdown brief that round-trips and reaches the JSON summaries', async t => {
+  const { root, file } = scratch(t);
+  const canonical = '# To-do\n\n## Open\n\n- [ ] Decide\n  - waiting: pick one\n  - brief: /tmp/brief.md\n  - 2026-10-26 09:00 agent: added\n\n## Done\n\n';
+  writeFileSync(file, canonical);
+  assert.equal(core.load(file).items[0].brief, '/tmp/brief.md');
+  assert.equal(core.serialize(core.load(file)), canonical);
+  writeFileSync(file, '# To-do\n\n## Open\n\n- [ ] Plain\n\n## Done\n\n');
+  assert.equal(core.load(file).items[0].brief, '');
+  rmSync(file);
+  const first = join(root, 'first.md'), second = join(root, 'second.md');
+  const id = checkCode(await cli(file, ['add', 'Choose a vendor', '--brief', first]), 0).stdout.trim();
+  assert.ok(readFileSync(file, 'utf8').includes(`  - brief: ${first}\n`));
+  checkCode(await cli(file, ['wait', id, 'which vendor?']), 0);
+  let listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout)[0];
+  assert.equal(listed.brief, first);
+  checkCode(await cli(file, ['brief', id, second]), 0);
+  assert.equal(JSON.parse(checkCode(await cli(file, ['next', '--json']), 10).stdout).brief, second);
+  assert.equal(JSON.parse(checkCode(await cli(file, ['take', id, '--json']), 10).stdout).brief, second);
+  assert.ok(readFileSync(file, 'utf8').includes(`agent: brief ${second}`));
+  checkCode(await cli(file, ['brief', id, 'relative/brief.md']), 2);
+  checkCode(await cli(file, ['add', 'Other', '--brief', 'brief.md']), 2);
+  checkCode(await cli(file, ['brief', id]), 2);
+  checkCode(await cli(file, ['brief', id, '']), 0);
+  listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout);
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].brief, '');
+  assert.ok(!readFileSync(file, 'utf8').includes('  - brief: '));
+  assert.ok(readFileSync(file, 'utf8').includes('agent: brief cleared'));
+});
+
+test('brief template: every At a glance label is one the app reads, so agents and the app share one format', () => {
+  const template = readFileSync(join(kit, 'todo', 'brief.md'), 'utf8');
+  const app = readFileSync(join(kit, 'todo', 'app', 'src', 'main.rs'), 'utf8');
+  const glance = template.split('## At a glance')[1].split('\n## ')[0];
+  const labels = [...glance.matchAll(/^- \*\*([^*]+):\*\* /gm)].map(match => match[1]);
+  assert.deepEqual(labels, ['Your call', 'What changes', 'AI pick', 'Phase', 'Background', 'Why']);
+  for (const label of labels) {
+    const read = label === 'Phase' ? 'labeled(&glance.1, "Phase")' : `field("${label}")`;
+    assert.ok(app.includes(read), `the app reads ${label}`);
+  }
 });

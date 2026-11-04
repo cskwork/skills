@@ -122,7 +122,7 @@ function parse(source) {
     if (match) {
       const checked = match[1].toLowerCase() === 'x';
       item = { id: '', title: match[2].replace(/^~~(.*)~~$/, '$1'), done: section === 'done' || checked,
-        project: '', link: null, sdlc: null, waiting: '', events: [], notes: [] };
+        project: '', link: null, sdlc: null, waiting: '', brief: '', repos: [], choices: [], pick: null, events: [], notes: [] };
       if (checked && section === 'open') item.checkedOpen = true;
       model.items.push(item);
       continue;
@@ -137,6 +137,10 @@ function parse(source) {
       const sep = stateAction.indexOf(' — ');
       item.sdlc = { slug, phase, state: sep < 0 ? stateAction : stateAction.slice(0, sep), action: sep < 0 ? '' : stateAction.slice(sep + 3) };
     } else if ((field = text.match(/^  - waiting: (.*)$/))) item.waiting = field[1];
+    else if ((field = text.match(/^  - brief: (.*)$/))) item.brief = field[1];
+    else if ((field = text.match(/^  - repos: (.*)$/))) item.repos = repoList(field[1], { strict: false });
+    else if ((field = text.match(/^  - choices: (.*)$/))) { item.choices = choiceList(field[1], { strict: false }); item.pick = null; }
+    else if ((field = text.match(/^  - pick: (.*)$/))) item.pick = pickIndex(field[1], item.choices, { strict: false });
     else if ((field = text.match(/^  - (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) ([^:]+): (.*)$/))) item.events.push({ at: field[1], who: field[2], what: field[3] });
     else item.notes.push(text);
   }
@@ -156,6 +160,10 @@ function renderItem(item) {
     lines.push(`  - sdlc: ${s.slug}${s.phase ? ` · ${s.phase}` : ''}${s.state ? ` · ${s.state}${s.action ? ` — ${s.action}` : ''}` : ''}`);
   }
   if (item.waiting) lines.push(`  - waiting: ${item.waiting}`);
+  if (item.brief) lines.push(`  - brief: ${item.brief}`);
+  if (item.repos?.length) lines.push(`  - repos: ${item.repos.join(', ')}`);
+  if (item.choices?.length) lines.push(`  - choices: ${item.choices.join(' | ')}`);
+  if (item.choices?.length && item.pick) lines.push(`  - pick: ${item.pick}`);
   for (const e of item.events) lines.push(`  - ${e.at} ${e.who}: ${e.what}`);
   lines.push(...item.notes);
   return lines.join('\n');
@@ -330,8 +338,41 @@ export function findItem(model, idOrSlug) {
   if (!matches.length) fail(`item not found: ${idOrSlug}`, 1);
   return matches[0];
 }
+// The repositories the work changes, shown on every view (e.g. "aidt-lms-api, aidt-viewer-api").
+// A hand-edited file keeps loading: parsing drops a bad name, only the command refuses one.
+const repoName = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/;
+export function repoList(value, { strict = true } = {}) {
+  const names = [...new Set(String(value ?? '').split(/[\s,]+/).filter(Boolean))];
+  if (strict && names.some(name => !repoName.test(name))) fail(`invalid repository name: ${value}`);
+  return names.filter(name => repoName.test(name));
+}
+// Answers a human can pick with one click (e.g. "proceed | fix first | hold"); pick is the
+// 1-based recommended one. Like repos, parsing keeps a hand-edited bad line loading.
+export const maxChoices = 6;
+export function choiceList(value, { strict = true } = {}) {
+  const text = strict ? line(value) : String(value ?? '');
+  if (!text.trim()) return [];
+  const labels = text.split('|').map(label => label.trim());
+  if (strict && labels.some(label => !label)) fail(`empty choice label: ${value}`);
+  if (strict && labels.length > maxChoices) fail(`at most ${maxChoices} choices`);
+  return labels.filter(Boolean).slice(0, maxChoices);
+}
+export function pickIndex(value, choices, { strict = true } = {}) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim(), pick = Number(text);
+  if (/^\d+$/.test(text) && pick >= 1 && pick <= choices.length) return pick;
+  if (strict) fail(`invalid --pick: ${value} (1 to ${choices.length})`);
+  return null;
+}
+// A brief is a markdown file a human reads before deciding; only an absolute path is trusted.
+function briefPath(value) {
+  const brief = line(value);
+  if (brief && !path.isAbsolute(brief)) fail('brief must be an absolute path');
+  return brief;
+}
 export async function add(file, text, options = {}) {
   const parsed = parseText(text);
+  const brief = briefPath(options.brief);
   const project = normalizeProject(options.project ?? parsed.project), slug = line(options.slug || '');
   return mutate(file, model => {
     if (slug) {
@@ -343,7 +384,7 @@ export async function add(file, text, options = {}) {
     const by = line(options.by || 'agent');
     if (!/^[^:\r\n]+$/.test(by)) fail('invalid event author');
     const item = { id: '', title, done: false, project, link: linkValue(options.link ?? parsed.link),
-      sdlc: slug ? { slug, phase: 'intent', state: '', action: '' } : null, waiting: '', events: [], notes: [] };
+      sdlc: slug ? { slug, phase: 'intent', state: '', action: '' } : null, waiting: '', brief, repos: [], choices: [], pick: null, events: [], notes: [] };
     model.items.splice(model.items.findIndex(i => i.done) < 0 ? model.items.length : model.items.findIndex(i => i.done), 0, item);
     event(item, by, 'added');
     identify(model);
@@ -415,6 +456,21 @@ export const resume = (file, id, words = '') => update(file, id, item => {
 });
 export const answer = (file, id, words) => update(file, id, item => { item.waiting = ''; event(item, 'agent', `chat answer — ${line(words)}`); });
 export const note = (file, id, words) => update(file, id, item => event(item, 'agent', line(words)));
+export const brief = (file, id, value) => { const brief = briefPath(value); return update(file, id, item => { item.brief = brief; event(item, 'agent', brief ? `brief ${brief}` : 'brief cleared'); }); };
+export const repos = (file, id, value) => { const names = repoList(value); return update(file, id, item => {
+  if (JSON.stringify(item.repos || []) === JSON.stringify(names)) return;
+  item.repos = names; event(item, 'agent', names.length ? `repos ${names.join(', ')}` : 'repos cleared');
+}); };
+export const choices = (file, id, value, pick) => {
+  const labels = choiceList(value);
+  if (!labels.length && pick !== undefined) fail('--pick needs choices');
+  const chosen = pickIndex(pick, labels);
+  return update(file, id, item => {
+    if (JSON.stringify([item.choices || [], item.pick ?? null]) === JSON.stringify([labels, chosen])) return;
+    item.choices = labels; item.pick = chosen;
+    event(item, 'agent', labels.length ? `choices ${labels.join(' | ')}` : 'choices cleared');
+  });
+};
 export const start = (file, id, slug, phase = 'intent') => update(file, id, item => { item.sdlc = { slug: line(slug), phase: line(phase), state: '', action: '' }; event(item, 'agent', `started ${item.sdlc.slug}`); });
 export const phase = (file, id, value) => update(file, id, item => { if (!item.sdlc) fail('item has no slug'); item.sdlc.phase = line(value); event(item, 'agent', `phase ${item.sdlc.phase}`); });
 export const approved = (file, id, gate, words) => update(file, id, item => event(item, 'human', `approved ${line(gate)} — "${line(words)}"`));

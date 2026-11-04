@@ -9,10 +9,13 @@ import { defaultLanguage, languages, resolveLanguage } from './i18n.mjs';
 const kit = fileURLToPath(new URL('../', import.meta.url));
 const file = core.todoPath();
 const usage = `Usage: node ${path.join(kit, 'todo', 'todo.mjs')} <command>
-  add ["text"] [--project P] [--link URL] [--slug S] [--by NAME]
+  add ["text"] [--project P] [--link URL] [--slug S] [--by NAME] [--brief PATH]
   next [--json] | take <id> [--json] | list [--json] | sync
   start <id> --slug S [--phase P] | phase <id> <phase>
   wait <id> "what" | resume <id> ["note"] | answer <id> "chat words" | note <id> "text"
+  brief <id> <absolute .md path> (attach a markdown brief for the human; "" clears it)
+  repos <id> [name,name] (repositories the work changes, shown on every view; empty clears)
+  choices <id> ["label | label | ..."] [--pick N] (up to 6 one-click answers, N marks the recommended one; no labels clears)
   done <id> ["result"] | web [--port N] [--open] [--lang L] | serve [--lang L] | help
   No command: the app (--ui tui,web,app picks any of them; --no-web for the TUI alone, --lang L).
   Without a built app it opens the TUI with its web link; build it with: cargo build --release --manifest-path ${path.join(kit, 'todo', 'app', 'Cargo.toml')}
@@ -20,9 +23,9 @@ const usage = `Usage: node ${path.join(kit, 'todo', 'todo.mjs')} <command>
   --lang ${languages.join('|')} sets the UI language; default SDLC_TODO_LANG, else ${defaultLanguage}.`;
 const bad = message => { throw Object.assign(new Error(`${message}\n${usage}`), { code: 2 }); };
 const schemas = {
-  add: { project: true, link: true, slug: true, by: true },
+  add: { project: true, link: true, slug: true, by: true, brief: true },
   next: { json: false }, take: { json: false }, list: { json: false }, sync: {},
-  start: { slug: true, phase: true }, phase: {}, wait: {}, resume: {}, answer: {}, note: {}, done: {},
+  start: { slug: true, phase: true }, phase: {}, wait: {}, resume: {}, answer: {}, note: {}, brief: {}, repos: {}, choices: { pick: true }, done: {},
   web: { port: true, open: false, lang: true }, serve: { lang: true }, help: {}, '': { 'no-web': false, lang: true, ui: true }
 };
 function argumentsFor(argv) {
@@ -44,7 +47,7 @@ function argumentsFor(argv) {
 function summary(item) {
   return { id: item.id, title: item.title, project: item.project, link: item.link,
     slug: item.sdlc?.slug || null, phase: item.sdlc?.phase || null, state: item.sdlc?.state || null,
-    action: item.sdlc?.action || '', waiting: item.waiting, replies: item.replies || core.replies(item), unread: item.unread || 0, fix: !!item.fixRequested, status: item.status };
+    action: item.sdlc?.action || '', waiting: item.waiting, brief: item.brief || '', repos: item.repos || [], choices: item.choices || [], pick: item.pick ?? null, replies: item.replies || core.replies(item), unread: item.unread || 0, fix: !!item.fixRequested, status: item.status };
 }
 const uiNames = ['tui', 'web', 'app'];
 const appPath = () => process.env.SDLC_TODO_APP || path.join(kit, 'todo', 'app', 'target', 'release', process.platform === 'win32' ? 'sdlc-todo.exe' : 'sdlc-todo');
@@ -156,6 +159,9 @@ async function main() {
       arity(2);
       if (!args[1].trim()) bad(`${command} requires text`);
       await core[command](file, ...args); return;
+    case 'brief': arity(2); await core.brief(file, ...args); return;
+    case 'repos': arity(1, 2); await core.repos(file, args[0], args[1] || ''); return;
+    case 'choices': arity(1, 2); await core.choices(file, args[0], args[1] || '', flags.pick); return;
     case 'done': arity(1, 2); await core.done(file, ...args); return;
     case 'resume': arity(1, 2); await core.resume(file, ...args); return;
   }
