@@ -41,7 +41,8 @@ struct App {
     tab: Tab,
     open: HashSet<String>,
     closed: HashSet<String>,
-    drafts: HashMap<String, String>,
+    /// Reply drafts by item: (text, the suggestion it started from).
+    drafts: HashMap<String, (String, String)>,
     notes: HashMap<String, String>,
     tray: Option<TrayIcon>,
     badge: Option<usize>,
@@ -57,6 +58,7 @@ fn status_label(lang: Lang, item: &Item) -> &'static str {
         "agent" => t(lang, "status.agent"),
         "handoff" => t(lang, "status.handoff"),
         "blocked" => t(lang, "status.blocked"),
+        "others" => t(lang, "status.others"),
         "done" => t(lang, "status.done"),
         _ => t(lang, "status.new"),
     }
@@ -267,7 +269,7 @@ impl eframe::App for App {
                 ui.add_space(4.0);
                 let count = |actor: &str| model.items.iter().filter(|i| i.turn.actor == actor).count();
                 ui.horizontal(|ui| {
-                    for (actor, key) in [("you", "you"), ("agent", "agent"), ("blocked", "blocked"), ("done", "done")] {
+                    for (actor, key) in [("you", "you"), ("agent", "agent"), ("others", "others"), ("blocked", "blocked"), ("done", "done")] {
                         pill(ui, &format!("{} {}", t(lang, key), count(actor)), actor, dark);
                     }
                 });
@@ -289,7 +291,8 @@ impl eframe::App for App {
 
                 let shown: Vec<&Item> = model.items.iter().filter(|i| match self.tab {
                     Tab::Focus => needs_you(i),
-                    Tab::Agent => !i.done && i.turn.actor == "agent",
+                    // Items waiting on someone else are in progress, not yours.
+                    Tab::Agent => !i.done && matches!(i.turn.actor.as_str(), "agent" | "others"),
                     Tab::All => !i.done,
                     Tab::Done => i.done,
                 }).collect();
@@ -377,6 +380,7 @@ impl App {
             "you" if !item.turn.gate.is_empty() && item.waiting.is_empty() => (t(lang, "waits"), t(lang, if item.turn.gate == "plan" { "ask.plan" } else { "ask.intent" }).to_string()),
             "you" => (t(lang, "waits"), if item.waiting.is_empty() { action.clone() } else { item.waiting.clone() }),
             "blocked" => (t(lang, "problem"), item.error.clone().unwrap_or(action.clone())),
+            "others" => (t(lang, "waits.others"), item.others.clone()),
             _ => ("", String::new()),
         };
         // The brief comes from the work document (intent.md or PLAN.md) or the item's brief file.
@@ -395,12 +399,16 @@ impl App {
         let missing = vec![t(lang, "doc.none").to_string()];
         let or_missing = |lines: &Vec<String>| if lines.is_empty() && has_doc { missing.clone() } else { lines.clone() };
         bullets(ui, p, t(lang, "doc.background"), &or_missing(&background));
+        // The box holds only what the human decides: the question and the agent's pick. The agent's waiting
+        // line joins only when the document asks nothing, or when the item is blocked (the line is the problem).
         let mut asked: Vec<String> = Vec::new();
         // The document's question and the agent's waiting line are often the same words; show each once.
         let key = |text: &str| text.split_whitespace().collect::<String>().chars().take(40).collect::<String>();
-        for line in decide.into_iter().chain(summary).chain(pick).chain((!ask.is_empty()).then(|| clip(&ask, 160))) {
+        let waiting_line = (!ask.is_empty() && (decide.is_empty() || item.turn.actor != "you")).then(|| clip(&ask, 160));
+        for line in decide.into_iter().chain(pick).chain(waiting_line) {
             if !asked.iter().any(|seen| key(seen) == key(&line)) { asked.push(line); }
         }
+        let tobe: Vec<String> = summary.into_iter().filter(|line| !asked.iter().any(|seen| key(seen) == key(line))).collect();
         if !label.is_empty() && !asked.is_empty() {
             let (fg, bg) = theme::tone(&item.turn.actor, dark);
             egui::Frame::new().fill(bg).corner_radius(CornerRadius::same(10)).inner_margin(Margin::symmetric(12, 10)).show(ui, |ui| {
@@ -408,7 +416,12 @@ impl App {
                 ui.label(RichText::new(label).color(fg).size(11.5).strong());
                 for line in &asked { ui.label(RichText::new(line).size(13.5)).on_hover_text(&ask); }
             });
+            // What the agent will do (TO-BE) sits under the box, one muted line.
+            for line in &tobe {
+                ui.add(egui::Label::new(RichText::new(line).color(p.muted).size(12.5)).wrap());
+            }
         } else {
+            asked.extend(tobe);
             bullets(ui, p, t(lang, "doc.summary"), &asked);
         }
         bullets(ui, p, t(lang, "doc.why"), &or_missing(&why));
@@ -433,7 +446,9 @@ impl App {
             });
         }
         if item.turn.actor == "you" && item.turn.kind == "answer" {
-            let draft = self.drafts.entry(item.id.clone()).or_default();
+            // The agent's suggested answer fills the field until the human edits it; a new suggestion replaces an unedited one.
+            let (draft, seed) = self.drafts.entry(item.id.clone()).or_insert_with(|| (item.suggest.clone(), item.suggest.clone()));
+            if draft == seed && *seed != item.suggest { *draft = item.suggest.clone(); *seed = item.suggest.clone(); }
             let field = ui.add(egui::TextEdit::singleline(draft).hint_text(t(lang, "reply.hint")).desired_width(f32::INFINITY).margin(Margin::symmetric(10, 7)));
             // Enter in the field sends, like the button; a single-line field loses focus on Enter.
             let entered = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
