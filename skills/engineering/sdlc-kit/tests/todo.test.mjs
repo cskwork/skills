@@ -161,6 +161,31 @@ test('repos: CLI records the changed repositories once, JSON shows them, a bad h
   assert.doesNotMatch(readFileSync(file, 'utf8'), /^  - repos:/m);
 });
 
+test('suggest: CLI stores the recommended answer, lists it, adds one event per change; a reply or no text clears it', async t => {
+  const { file } = scratch(t);
+  const id = checkCode(await cli(file, ['add', 'A20-1438 secure file url', '--by', 'factory']), 0).stdout.trim();
+  checkCode(await cli(file, ['wait', id, 'LCMS 미리보기 인증을 어떻게 할까요?']), 0);
+  checkCode(await cli(file, ['suggest', id, '두 줄\n답']), 2);
+  checkCode(await cli(file, ['suggest', id, ' 미리보기는 지금처럼 두고 HLS는 뺀다 ']), 0);
+  checkCode(await cli(file, ['suggest', id, '미리보기는 지금처럼 두고 HLS는 뺀다']), 0);
+  let text = readFileSync(file, 'utf8');
+  assert.match(text, /^  - suggest: 미리보기는 지금처럼 두고 HLS는 뺀다$/m);
+  assert.equal(text.split('agent: suggest — ').length - 1, 1, 'the same suggestion adds no second event');
+  assert.equal(core.serialize(core.load(file)), text, 'a file with a suggestion round-trips byte for byte');
+  for (const [command, code] of [[['list', '--json'], 0], [['take', id, '--json'], 10]]) {
+    const json = JSON.parse(checkCode(await cli(file, command), code).stdout);
+    assert.equal((Array.isArray(json) ? json[0] : json).suggest, '미리보기는 지금처럼 두고 HLS는 뺀다');
+  }
+  await core.reply(file, id, '네');
+  assert.doesNotMatch(readFileSync(file, 'utf8'), /^  - suggest:/m, 'the human reply clears it');
+  checkCode(await cli(file, ['suggest', id, '다시 권장']), 0);
+  checkCode(await cli(file, ['suggest', id]), 0);
+  text = readFileSync(file, 'utf8');
+  assert.doesNotMatch(text, /^  - suggest:/m);
+  assert.match(text, /agent: suggest cleared$/m);
+  assert.equal(JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout)[0].suggest, '');
+});
+
 test('choices: CLI stores one-click answers and a pick, adds one event per change, clears, refuses bad input', async t => {
   const { file } = scratch(t);
   const id = checkCode(await cli(file, ['add', '[결정 D35] A20-1462 · how to proceed', '--by', 'factory']), 0).stdout.trim();
@@ -192,6 +217,44 @@ test('choices: CLI stores one-click answers and a pick, adds one event per chang
   assert.match(text, /agent: choices cleared$/m);
   const listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout);
   assert.deepEqual([listed[0].choices, listed[0].pick], [[], null]);
+});
+
+test('others: waiting on someone else leaves Needs you, next passes it by, a reply or wait clears it', async t => {
+  const { file } = scratch(t);
+  const a = await core.add(file, 'A20-1 QA answers first');
+  const b = await core.add(file, 'B');
+  await core.wait(file, a.id, 'which endpoint?');
+  checkCode(await cli(file, ['others', a.id, '기획·QA 회신 대기']), 0);
+  checkCode(await cli(file, ['others', a.id, '기획·QA 회신 대기']), 0);
+  let text = readFileSync(file, 'utf8');
+  assert.match(text, /^  - others: 기획·QA 회신 대기$/m);
+  assert.doesNotMatch(text, /^  - waiting:/m, 'waiting on others ends the wait for the human');
+  assert.equal(text.split('agent: waiting on others — ').length - 1, 1, 'the same text adds no second event');
+  assert.equal(core.serialize(core.load(file)), text, 'round-trips byte for byte');
+  let item = core.load(file).items[0];
+  assert.equal(item.status, 'others');
+  assert.deepEqual(statusOf(item), { actor: 'others', kind: 'others' });
+  const listed = JSON.parse(checkCode(await cli(file, ['list', '--json']), 0).stdout);
+  assert.equal(listed[0].others, '기획·QA 회신 대기');
+  assert.equal((await next(file, 0)).id, b.id, 'next passes an item waiting on others');
+  checkCode(await cli(file, ['take', a.id]), 15);
+  await core.reply(file, a.id, '기획에 다시 물어봐');
+  item = core.load(file).items[0];
+  assert.deepEqual([item.others, item.status, statusOf(item).kind], ['', 'workable', 'handoff'], 'a reply hands it back to an agent');
+  const taken = JSON.parse(checkCode(await cli(file, ['take', a.id, '--json']), 0).stdout);
+  assert.deepEqual([taken.waiting, taken.asked], ['', 'which endpoint?'], 'asked keeps the last wait after a reply');
+  await core.others(file, a.id, 'QA 회신 대기');
+  await core.wait(file, a.id, 'VPN을 dev로 바꿔 주세요');
+  item = core.load(file).items[0];
+  assert.deepEqual([item.others, item.status], ['', 'waiting'], 'a wait for the human replaces it');
+  await core.others(file, a.id, 'QA 회신 대기');
+  await core.resume(file, a.id, '회신 받음');
+  assert.equal(core.load(file).items[0].others, '', 'resume clears it');
+  await core.others(file, a.id, 'QA 회신 대기');
+  checkCode(await cli(file, ['others', a.id]), 0);
+  text = readFileSync(file, 'utf8');
+  assert.doesNotMatch(text, /^  - others:/m);
+  assert.match(text, /agent: others cleared$/m);
 });
 
 test('S5: next stops at the first wait, exposes a human reply, and returns 30 when empty', async t => {

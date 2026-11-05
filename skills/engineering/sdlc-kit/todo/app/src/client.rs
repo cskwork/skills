@@ -52,6 +52,8 @@ pub struct Item {
     #[serde(default)]
     pub waiting: String,
     #[serde(default)]
+    pub others: String,
+    #[serde(default)]
     pub error: Option<String>,
     #[serde(default)]
     pub sdlc: Option<Sdlc>,
@@ -63,6 +65,8 @@ pub struct Item {
     pub choices: Vec<String>,
     #[serde(default)]
     pub pick: Option<usize>,
+    #[serde(default)]
+    pub suggest: String,
     pub version: String,
     pub turn: Turn,
 }
