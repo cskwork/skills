@@ -1,0 +1,11 @@
+{
+ "legend": {"red": "Problem line", "green": "Fixed line", "blue": "Normal flow"},
+ "captures": [
+  {"name": "before_place", "blocks": [{
+    "file": "OrderService.java", "lex": "java",
+    "tag": "Before · main", "tag_color": "#cf222e", "path": "order-api · OrderService.place()",
+    "ranges": [[3, 8]],
+    "hl": {"4": "blue", "5": "red", "6": "red"},
+    "notes": {"5": "ignores couponCode, uses the user's latest coupon", "6": "wrong rate applied"}}]}
+ ]
+}
