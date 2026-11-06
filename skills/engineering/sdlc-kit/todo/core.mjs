@@ -69,8 +69,10 @@ function derive(item) {
   // A file edit has no trustworthy cwd, even before a slug is attached.
   if (isRelativeProject(item.project)) item.error = relativeProjectError;
   else delete item.error;
-  item.status = item.done ? 'done' : item.error || item.sdlc?.state === 'BLOCKED' ? 'blocked' :
-    ((item.waiting || item.sdlc?.state === 'NEEDS-HUMAN') && !replies(item).length) ? 'waiting' :
+  // An agent's own wait for the human outranks an sdlc BLOCKED it has already seen (e.g. a legacy slug); a call error does not.
+  item.status = item.done ? 'done' : item.error || item.sdlc?.state === 'BLOCKED' && !(item.waiting && !replies(item).length) ? 'blocked' :
+    // An agent's "someone else answers first" outranks an sdlc NEEDS-HUMAN it has already seen; its own wait does not.
+    ((item.waiting || item.sdlc?.state === 'NEEDS-HUMAN' && !item.others) && !replies(item).length) ? 'waiting' :
     // Waiting on someone else (a planner, QA): neither the human nor an agent can act until they answer.
     item.others && !unread(item).length ? 'others' : 'workable';
   item.unread = unread(item).length;
@@ -129,7 +131,7 @@ function parse(source) {
     if (match) {
       const checked = match[1].toLowerCase() === 'x';
       item = { id: '', title: match[2].replace(/^~~(.*)~~$/, '$1'), done: section === 'done' || checked,
-        project: '', link: null, sdlc: null, waiting: '', others: '', brief: '', repos: [], choices: [], pick: null, suggest: '', events: [], notes: [] };
+        project: '', link: null, sdlc: null, waiting: '', others: '', brief: '', repos: [], choices: [], pick: null, suggest: '', run: '', events: [], notes: [] };
       if (checked && section === 'open') item.checkedOpen = true;
       model.items.push(item);
       continue;
@@ -150,6 +152,7 @@ function parse(source) {
     else if ((field = text.match(/^  - choices: (.*)$/))) { item.choices = choiceList(field[1], { strict: false }); item.pick = null; }
     else if ((field = text.match(/^  - pick: (.*)$/))) item.pick = pickIndex(field[1], item.choices, { strict: false });
     else if ((field = text.match(/^  - suggest: (.*)$/))) item.suggest = field[1];
+    else if ((field = text.match(/^  - run: (.*)$/))) item.run = field[1];
     else if ((field = text.match(/^  - (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) ([^:]+): (.*)$/))) item.events.push({ at: field[1], who: field[2], what: field[3] });
     else item.notes.push(text);
   }
@@ -175,6 +178,7 @@ function renderItem(item) {
   if (item.choices?.length) lines.push(`  - choices: ${item.choices.join(' | ')}`);
   if (item.choices?.length && item.pick) lines.push(`  - pick: ${item.pick}`);
   if (item.suggest) lines.push(`  - suggest: ${item.suggest}`);
+  if (item.run) lines.push(`  - run: ${item.run}`);
   for (const e of item.events) lines.push(`  - ${e.at} ${e.who}: ${e.what}`);
   lines.push(...item.notes);
   return lines.join('\n');
@@ -194,6 +198,7 @@ function finish(model, item, who, what) {
   item.waiting = '';
   item.others = '';
   item.suggest = '';
+  item.run = '';
   event(item, who, what);
   model.items.splice(model.items.indexOf(item), 1);
   const firstDone = model.items.findIndex(i => i.done);
@@ -399,7 +404,7 @@ export async function add(file, text, options = {}) {
     const by = line(options.by || 'agent');
     if (!/^[^:\r\n]+$/.test(by)) fail('invalid event author');
     const item = { id: '', title, done: false, project, link: linkValue(options.link ?? parsed.link),
-      sdlc: slug ? { slug, phase: 'intent', state: '', action: '' } : null, waiting: '', brief, repos: [], choices: [], pick: null, suggest: '', events: [], notes: [] };
+      sdlc: slug ? { slug, phase: 'intent', state: '', action: '' } : null, waiting: '', brief, repos: [], choices: [], pick: null, suggest: '', run: '', events: [], notes: [] };
     model.items.splice(model.items.findIndex(i => i.done) < 0 ? model.items.length : model.items.findIndex(i => i.done), 0, item);
     event(item, by, 'added');
     identify(model);
@@ -430,7 +435,7 @@ export const move = (file, id, delta, version) => update(file, id, (item, model)
 }, version);
 export const remove = (file, id, version) => update(file, id, (item, model) => { model.items.splice(model.items.indexOf(item), 1); }, version);
 export const done = (file, id, words = '', by = 'agent', version) => update(file, id, (item, model) => finish(model, item, by, `done${words ? ` — ${line(words)}` : ''}`), version);
-export const reply = (file, id, words, version) => update(file, id, item => { item.waiting = ''; item.others = ''; item.suggest = ''; event(item, 'human', `reply — ${line(words)}`); }, version);
+export const reply = (file, id, words, version) => update(file, id, item => { item.waiting = ''; item.others = ''; item.suggest = ''; item.run = ''; event(item, 'human', `reply — ${line(words)}`); }, version);
 // The kit never runs a model: a fix request is recorded for the next agent run, and the
 // human's own todo-agent.json may name a command that starts one now ({id} {kit} {project}).
 function agentCommand(file, name, values) {
@@ -477,6 +482,7 @@ export const resume = (file, id, words = '') => update(file, id, item => {
   if (!item.waiting && !item.others) return;
   item.waiting = '';
   item.others = '';
+  item.run = '';
   event(item, 'agent', `resumed${line(words) ? ` — ${line(words)}` : ''}`);
 });
 export const answer = (file, id, words) => update(file, id, item => { item.waiting = ''; item.suggest = ''; event(item, 'agent', `chat answer — ${line(words)}`); });
@@ -502,6 +508,14 @@ export const suggest = (file, id, words = '') => update(file, id, item => {
   if (text === (item.suggest || '')) return;
   item.suggest = text;
   event(item, 'agent', text ? `suggest — ${text}` : 'suggest cleared');
+});
+// A command the human runs in a terminal (e.g. a VPN login that asks for an OTP). The app opens a terminal with it
+// typed but not run; the human presses Enter. A reply, resume, done or no text clears it.
+export const run = (file, id, words = '') => update(file, id, item => {
+  const text = line(words);
+  if (text === (item.run || '')) return;
+  item.run = text;
+  event(item, 'agent', text ? `run — ${text}` : 'run cleared');
 });
 export const start = (file, id, slug, phase = 'intent') => update(file, id, item => { item.sdlc = { slug: line(slug), phase: line(phase), state: '', action: '' }; event(item, 'agent', `started ${item.sdlc.slug}`); });
 export const phase = (file, id, value) => update(file, id, item => { if (!item.sdlc) fail('item has no slug'); item.sdlc.phase = line(value); event(item, 'agent', `phase ${item.sdlc.phase}`); });
