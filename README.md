@@ -76,6 +76,7 @@ The included system prompt enables Caveman by default. If you keep your own prom
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [ponytail](skills/productivity/ponytail) | Lazy-senior-dev mode: the simplest, shortest solution that actually works. | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) |
 | [work-status](skills/productivity/work-status) | Report progress on the current request in numbers: items done, in progress, todo, and blocked, evidence for each done item, and an ETA for the rest. | this repo |
+| [confluence-explain-doc](skills/productivity/confluence-explain-doc) | Explain a bug's cause and fix in Confluence so a first-time reader gets it: real code captures with red/green/blue line highlights, one section per problem, how problems connect, git blame plus the original reason for each cause, details folded. Project specifics live in a separate domain profile. | this repo |
 
 ### Design
 
