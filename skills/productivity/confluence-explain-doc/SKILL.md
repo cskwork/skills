@@ -25,7 +25,7 @@ No format headings ("Summary", "Overview", "TL;DR", "Click to expand"). Headings
 2. **One section per problem**, numbered in the priority the user sets (`<h2>Problem N. <keyword>: <symptom in one line></h2>`). When you renumber, fix every "Problem N" reference too.
    - **Four lines** (`<ul>`, `<strong>keyword</strong> — one plain sentence`): symptom → cause → evidence it really happened *or* original background (with blame) → fix (commits). Define each term the first time it appears; put job/batch IDs in parentheses, not as the subject.
    - **One example line:** one person or record, with real values.
-   - **Code captures:** one `Flow · <function>` capture, then each cause as `Cause · …` with *before* and *after* captures. Wrap cause captures in a light-red panel. The caption names line numbers and example values ("line 179 reads B from the stored table → line 135 writes B into the result").
+   - **Code captures:** one `Flow · <function>` capture, then each cause as `Cause · …` with *before* and *after* captures. Every cause needs both. When the fix deletes the code, the *after* capture is the caller with the call gone (green note "call removed → computed value passes through"). Wrap cause captures in a light-red panel. The caption names line numbers and example values ("line 179 reads B from the stored table → line 135 writes B into the result").
    - Raw logs and API responses go in a titled `code` macro, not an image.
 3. **How the problems connect** (only if they do, one paragraph): the path from one to the other, what remains if only one is fixed (with line numbers and an example), and which fix cuts the link.
 4. **Release and status** (two lines): scope (which repos/jobs) and status, including pending approvals and follow-up actions.
