@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 The coordinator (you) fans out N independent QA delegates, then verifies and merges what they find. Delegates **find and propose**; they change nothing. Code edits and data writes happen only after the user approves the report, applied by the coordinator one at a time.
 
+The oracle is **domain intent**: what the domain says each entity, state, and value means and which ones may exist. The code under test is never its own oracle; a row the code writes consistently can still be wrong for the domain.
+
 ## Arguments
 
 | Arg | Default | Values |
@@ -34,17 +36,18 @@ Arguments given in the request override any model routing in the user's own inst
 Read the repo instructions (`AGENTS.md`, `CLAUDE.md`), then collect:
 
 - **Changes:** `git log --oneline <since>..HEAD` and `git diff --stat <since>...HEAD`. From the diff, list changed endpoints, queries/mappers, tables, and screens with file paths.
+- **Domain intent:** from `GLOSSARY.md`, `docs/adr/`, schema and column comments, enums and constants, specs, and the ticket behind each change, write a table of entities, their states and allowed transitions, invariants (counts, sums, uniqueness, ownership), and what each role may see or do. Every rule cites its source; a rule nobody wrote down is marked `intent unknown`, never inferred from the code.
 - **Environment:** base URL, API base, test accounts per role, DB host.
 - **Existing QA assets** to reuse: `browser-qa` scenarios, `release-stability-e2e` domains, `.bughunt.md`, project fixtures.
 - **Run dir:** `~/.qa/runs/<yyyymmdd-hhmm>-<slug>/`, outside the repo.
 
 Missing URL, accounts, or DB access needed by the mode: ask the user one question and wait. Otherwise invoking /qa is the go-ahead.
 
-Done when `<run-dir>/plan.md` holds mode, target, environment with verified hostname, model and effort, the change list, and the slice table from step 2.
+Done when `<run-dir>/plan.md` holds mode, target, environment with verified hostname, model and effort, the change list, the domain intent table, and the slice table from step 2.
 
 ## 2. Slice
 
-Slices are disjoint: each owns its journey or lens, its accounts, its created data, and its browser session. Derive slices from the change list first; fill the rest from these defaults in order (merge from the bottom when N < 5, split the busiest when N > 5).
+Slices are disjoint: each owns its journey or lens, its accounts, its created data, and its browser session. Name slices in domain terms (roles, entities, states). Test data is domain-realistic: real roles, plausible values, and the edge states the domain names (a cancelled order, a user who changed roles, a closed period), so a pass means the domain works, not only the form. Derive slices from the change list first; fill the rest from these defaults in order (merge from the bottom when N < 5, split the busiest when N > 5).
 
 **E2E personas** (each walks real journeys through the changed paths):
 
@@ -58,7 +61,7 @@ Slices are disjoint: each owns its journey or lens, its accounts, its created da
 
 1. API vs DB: call each changed endpoint and compare response fields with the source rows.
 2. Query logic: joins, filters, NULL handling, duplicates, pagination, ordering in the changed SQL.
-3. Integrity: orphans, missing FK or unique guarantees, status combinations that should not exist in touched tables.
+3. Domain integrity: rows in touched tables against the domain intent table: states, combinations, and transitions the domain forbids; values outside the meaning their column claims; orphans; missing FK or unique guarantees.
 4. Aggregates and time: counts and sums vs raw rows, date boundaries, time zone, period cut-offs.
 5. Before vs after: run the pre-change query (from git) and the new one on the same data; explain every differing row.
 
@@ -74,10 +77,11 @@ Env: <base URL / API base>. DB <host>: check the connected host first and stop u
 Your accounts: <accounts owned by this slice only>.
 Changes in scope: <files, endpoints, queries, screens>.
 Your slice: <journey or lens with its concrete checks>.
+Domain intent: <rules from plan.md that bear on this slice, each with its source>. Expected = that rule, cited. Where no rule applies, write the finding as `intent unknown` with what the code does, instead of guessing what it should do.
 Tools: browser `playwright-cli -s=qa-<run-id>-<n> open <url>` first, then the same `-s=` on every command, `close` when done | DB SELECT-only via <skill or client> | API via curl.
 Rules: SELECT only; repo untouched; no commits or external posts; data you create carries tag QA-<run-id>-<n> and is listed; stress data (huge or bulk input) uses the smallest size that proves the point and is deleted right after measuring, since other testers share the data; secrets written as ***.
 Stay in your slice: an issue outside it gets one line under "Out of slice" with no further investigation.
-Write <run-dir>/findings-<n>.md. Per finding: title, severity (blocker | major | minor), repro steps, expected vs actual, evidence (screenshot path, request/response, query + rows), suspected root cause (file:line), fix proposal (diff or SQL draft, unapplied). End with Coverage: what you exercised, what you could not and why, and the data you created.
+Write <run-dir>/findings-<n>.md. Per finding: title, severity (blocker | major | minor), repro steps, expected (domain rule + source) vs actual, evidence (screenshot path, request/response, query + rows), suspected root cause (file:line), fix proposal (diff or SQL draft, unapplied). End with Coverage: what you exercised, what you could not and why, and the data you created.
 Done when every check in your slice is exercised or recorded as blocked with the reason. Report once: the file path and the finding count.
 ```
 
@@ -85,7 +89,7 @@ Then wait for the completion notifications.
 
 ## 4. Verify and merge
 
-Merge findings sharing a root cause into one, keeping every repro and the slices that saw it. Reproduce each merged finding yourself (rerun the steps or the query, one batch script where possible): reproduced is CONFIRMED; otherwise UNVERIFIED with what differed. Delete the data your repros created. Run `playwright-cli list` and close leftover `qa-<run-id>-*` sessions.
+Merge findings sharing a root cause into one, keeping every repro and the slices that saw it. Check each expected value against its cited source; a finding resting on `intent unknown` becomes a question for the domain owner, except crashes, security holes, and data loss, which stay defects. Reproduce each merged finding yourself (rerun the steps or the query, one batch script where possible): reproduced is CONFIRMED; otherwise UNVERIFIED with what differed. Delete the data your repros created. Run `playwright-cli list` and close leftover `qa-<run-id>-*` sessions.
 
 Done when every finding has a verdict and `<run-dir>/report.md` is written.
 
@@ -95,6 +99,7 @@ Reply in the user's language with:
 
 - Counts of CONFIRMED and UNVERIFIED per severity.
 - Findings table: severity, finding, evidence path, root cause, fix proposal, verdict.
+- Intent questions: each `intent unknown` rule with the rows or screens it affects.
 - Coverage gaps, leftover test data, and the model and effort actually used.
 - The question: which fixes to apply.
 
