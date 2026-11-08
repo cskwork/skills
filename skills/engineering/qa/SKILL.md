@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Launch parallel QA subagents (5 scenario-based E2E users or 5 data analysts over recent changes) and return verified findings with fix proposals. /qa [e2e|data|all] [target] [--agents N] [--model M] [--effort E] [--since REF]
+description: Launch parallel QA subagents (5 frontend users acting out real usage, mistakes, and unexpected actions, or 5 backend analysts checking APIs and data against domain intent) and return verified findings with fix proposals. /qa [e2e|data|all] [target] [--agents N] [--model M] [--effort E] [--since REF]
 disable-model-invocation: true
 ---
 
@@ -8,13 +8,16 @@ disable-model-invocation: true
 
 The coordinator (you) fans out N independent QA delegates, then verifies and merges what they find. Delegates **find and propose**; they change nothing. Code edits and data writes happen only after the user approves the report, applied by the coordinator one at a time.
 
-The oracle is **domain intent**: what the domain says each entity, state, and value means and which ones may exist. The code under test is never its own oracle; a row the code writes consistently can still be wrong for the domain.
+Each side has its own oracle; the code under test is never its own oracle.
+
+- **Backend (`data`): domain intent.** What the domain says each entity, state, and value means and which ones may exist. A row the code writes consistently can still be wrong for the domain.
+- **Frontend (`e2e`): the real user's experience.** A person using the product the way people actually do, mistakes and unexpected actions included, reaches their goal or is clearly told why not, understands what happened, can recover, and loses no work. Domain data shown on screen follows domain intent too.
 
 ## Arguments
 
 | Arg | Default | Values |
 |---|---|---|
-| mode | `e2e` | `e2e` (scenario users), `data` (data analysts), `all` (both sets in one launch) |
+| mode | `e2e` | `e2e` or `frontend` (real users), `data` or `backend` (API and data analysts), `all` (both sets in one launch) |
 | target | current repo and its dev environment | URL, repo path, ticket key, feature name |
 | `--agents N` | `5` | 1-10 per mode |
 | `--model M` | `sonnet` (Sonnet 5.5) | Claude alias `sonnet` `opus` `haiku` `fable` or full id; non-Claude id (e.g. `gpt-6.1-sol`) for `data` only |
@@ -49,15 +52,15 @@ Done when `<run-dir>/plan.md` holds mode, target, environment with verified host
 
 Slices are disjoint: each owns its journey or lens, its accounts, its created data, and its browser session. Name slices in domain terms (roles, entities, states). Test data is domain-realistic: real roles, plausible values, and the edge states the domain names (a cancelled order, a user who changed roles, a closed period), so a pass means the domain works, not only the form. Derive slices from the change list first; fill the rest from these defaults in order (merge from the bottom when N < 5, split the busiest when N > 5).
 
-**E2E personas** (each walks real journeys through the changed paths):
+**E2E users** (each is a person with a goal, walking the changed paths as that person would, never as a tester reading the code):
 
-1. Main changed journey, end to end, primary role.
-2. Other roles and permissions on the same journey (e.g. teacher vs student, admin vs user).
-3. Edge input: empty, maximum length, special characters, double submit, back or refresh mid-flow.
-4. State and interruption: reload, session expiry, second tab, slow network.
-5. Regression neighbours: unchanged screens that share the changed APIs or components.
+1. First-timer: the main changed journey with no prior knowledge. Can they find the way, read every state, and tell it worked?
+2. Mistake maker: wrong format, typo, empty or pasted text, IME Enter mid-composition, the wrong button, steps out of order. Is the error clear, near the field, and is the input kept?
+3. Impatient user: double click, clicking while loading, rapid navigation, slow network. Is anything duplicated, lost, or stuck?
+4. Interrupted user: back or refresh mid-flow, closing the tab and returning, a second tab, session expiry. Is work kept, or clearly lost with a way back?
+5. Off-path user: a deep link or bookmark, a skipped step, another role or device (mobile viewport, keyboard only), and neighbouring screens that share the changed parts.
 
-**Data analyst lenses** (each over the changed queries and APIs):
+**Backend analyst lenses** (each over the changed APIs, queries, and data, judged against the domain intent table):
 
 1. API vs DB: call each changed endpoint and compare response fields with the source rows.
 2. Query logic: joins, filters, NULL handling, duplicates, pagination, ordering in the changed SQL.
@@ -77,11 +80,12 @@ Env: <base URL / API base>. DB <host>: check the connected host first and stop u
 Your accounts: <accounts owned by this slice only>.
 Changes in scope: <files, endpoints, queries, screens>.
 Your slice: <journey or lens with its concrete checks>.
-Domain intent: <rules from plan.md that bear on this slice, each with its source>. Expected = that rule, cited. Where no rule applies, write the finding as `intent unknown` with what the code does, instead of guessing what it should do.
+Oracle, e2e: You are <who, their goal, what they know>. Act as that person, including the mistakes and unexpected actions of your slice. Expected = they reach the goal or are clearly told why not, can recover, lose no work; domain data on screen follows <rules, with source>.
+Oracle, data: Domain intent <rules from plan.md that bear on this slice, each with its source>. Expected = that rule, cited. Where no rule applies, write the finding as `intent unknown` with what the code does, instead of guessing what it should do.
 Tools: browser `playwright-cli -s=qa-<run-id>-<n> open <url>` first, then the same `-s=` on every command, `close` when done | DB SELECT-only via <skill or client> | API via curl.
 Rules: SELECT only; repo untouched; no commits or external posts; data you create carries tag QA-<run-id>-<n> and is listed; stress data (huge or bulk input) uses the smallest size that proves the point and is deleted right after measuring, since other testers share the data; secrets written as ***.
 Stay in your slice: an issue outside it gets one line under "Out of slice" with no further investigation.
-Write <run-dir>/findings-<n>.md. Per finding: title, severity (blocker | major | minor), repro steps, expected (domain rule + source) vs actual, evidence (screenshot path, request/response, query + rows), suspected root cause (file:line), fix proposal (diff or SQL draft, unapplied). End with Coverage: what you exercised, what you could not and why, and the data you created.
+Write <run-dir>/findings-<n>.md. Per finding: title, severity (blocker: goal unreachable, lost work, wrong data, security | major: user confused or needs a workaround | minor: friction), repro steps, expected (user outcome, or domain rule + source) vs actual (what the user saw, or the rows), evidence (screenshot path, request/response, query + rows), suspected root cause (file:line), fix proposal (diff or SQL draft, unapplied). End with Coverage: what you exercised, what you could not and why, and the data you created.
 Done when every check in your slice is exercised or recorded as blocked with the reason. Report once: the file path and the finding count.
 ```
 
@@ -89,7 +93,7 @@ Then wait for the completion notifications.
 
 ## 4. Verify and merge
 
-Merge findings sharing a root cause into one, keeping every repro and the slices that saw it. Check each expected value against its cited source; a finding resting on `intent unknown` becomes a question for the domain owner, except crashes, security holes, and data loss, which stay defects. Reproduce each merged finding yourself (rerun the steps or the query, one batch script where possible): reproduced is CONFIRMED; otherwise UNVERIFIED with what differed. Delete the data your repros created. Run `playwright-cli list` and close leftover `qa-<run-id>-*` sessions.
+Merge findings sharing a root cause into one, keeping every repro and the slices that saw it. Check each expected value against its cited source; a finding resting on `intent unknown` becomes a question for the domain owner, except crashes, security holes, and data loss, which stay defects. Reproduce each merged finding yourself, an e2e finding through the same user actions and a data finding by rerunning the query (one batch script where possible): reproduced is CONFIRMED; otherwise UNVERIFIED with what differed. Delete the data your repros created. Run `playwright-cli list` and close leftover `qa-<run-id>-*` sessions.
 
 Done when every finding has a verdict and `<run-dir>/report.md` is written.
 
