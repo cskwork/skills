@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Launch parallel QA subagents (5 frontend users acting out real usage, mistakes, and unexpected actions, or 5 backend analysts checking APIs and data against domain intent) and return verified findings with fix proposals. /qa [e2e|data|all] [target] [--agents N] [--model M] [--effort E] [--since REF]
+description: Launch parallel QA subagents (5 frontend users acting out real usage, mistakes, and unexpected actions, or 5 backend analysts checking APIs and data against domain intent) and return verified findings with fix proposals. /qa [all|e2e|data] [target] [--agents N] [--model M] [--effort E] [--since REF]
 disable-model-invocation: true
 ---
 
@@ -17,14 +17,14 @@ Each side has its own oracle; the code under test is never its own oracle.
 
 | Arg | Default | Values |
 |---|---|---|
-| mode | `e2e` | `e2e` or `frontend` (real users), `data` or `backend` (API and data analysts), `all` (both sets in one launch) |
+| mode | `all` | `all` (both sets in one launch), `e2e` or `frontend` (real users), `data` or `backend` (API and data analysts) |
 | target | current repo and its dev environment | URL, repo path, ticket key, feature name |
 | `--agents N` | `5` | 1-10 per mode |
 | `--model M` | `sonnet` (Sonnet 5.5) | Claude alias `sonnet` `opus` `haiku` `fable` or full id; non-Claude id (e.g. `gpt-6.1-sol`) for `data` only |
 | `--effort E` | `medium` | `low` `medium` `high` `xhigh` `max` |
 | `--since REF` | merge-base with the default branch; last 7 days when the branch has no own commits | git ref or date |
 
-Arguments given in the request override any model routing in the user's own instructions for this run. Claude models launch through the host's subagent tool with that model and effort (Claude Code: `Agent` `model` + `effort`). A non-Claude model runs through a peer CLI (for Codex, the `call-agent` skill from cskwork/skills), and only in `data` mode: a Codex sandbox cannot launch Playwright Chromium (observed 2026-10), so `e2e` with a non-Claude model stops with that reason. When the host cannot set model or effort, run its default and say so in the report.
+Arguments given in the request override any model routing in the user's own instructions for this run. Claude models launch through the host's subagent tool with that model and effort (Claude Code: `Agent` `model` + `effort`). A non-Claude model runs through a peer CLI (for Codex, the `call-agent` skill from cskwork/skills), and only in `data` mode: a Codex sandbox cannot launch Playwright Chromium (observed 2026-10), so a non-Claude model runs only the `data` side: `all` skips `e2e` and says why, and an explicit `e2e` stops with that reason. When the host cannot set model or effort, run its default and say so in the report.
 
 ## Safety
 
@@ -44,7 +44,7 @@ Read the repo instructions (`AGENTS.md`, `CLAUDE.md`), then collect:
 - **Existing QA assets** to reuse: `browser-qa` scenarios, `release-stability-e2e` domains, `.bughunt.md`, project fixtures.
 - **Run dir:** `~/.qa/runs/<yyyymmdd-hhmm>-<slug>/`, outside the repo.
 
-Missing URL, accounts, or DB access needed by the mode: ask the user one question and wait. Otherwise invoking /qa is the go-ahead.
+Missing access with the default `all`: run the side that has it (an app URL and accounts for `e2e`; an API or DB for `data`), and name the skipped side and the missing access in `plan.md` and the report. Missing access for an explicitly named mode, or for both sides: ask the user one question and wait. Otherwise invoking /qa is the go-ahead.
 
 Done when `<run-dir>/plan.md` holds mode, target, environment with verified hostname, model and effort, the change list, the domain intent table, and the slice table from step 2.
 
