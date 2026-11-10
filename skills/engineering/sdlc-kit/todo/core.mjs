@@ -131,7 +131,7 @@ function parse(source) {
     if (match) {
       const checked = match[1].toLowerCase() === 'x';
       item = { id: '', title: match[2].replace(/^~~(.*)~~$/, '$1'), done: section === 'done' || checked,
-        project: '', link: null, sdlc: null, waiting: '', others: '', brief: '', repos: [], choices: [], pick: null, suggest: '', run: '', events: [], notes: [] };
+        project: '', link: null, sdlc: null, waiting: '', others: '', brief: '', repos: [], choices: [], pick: null, suggest: '', run: '', pin: false, events: [], notes: [] };
       if (checked && section === 'open') item.checkedOpen = true;
       model.items.push(item);
       continue;
@@ -153,6 +153,7 @@ function parse(source) {
     else if ((field = text.match(/^  - pick: (.*)$/))) item.pick = pickIndex(field[1], item.choices, { strict: false });
     else if ((field = text.match(/^  - suggest: (.*)$/))) item.suggest = field[1];
     else if ((field = text.match(/^  - run: (.*)$/))) item.run = field[1];
+    else if (text === '  - pin: yes') item.pin = true;
     else if ((field = text.match(/^  - (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) ([^:]+): (.*)$/))) item.events.push({ at: field[1], who: field[2], what: field[3] });
     else item.notes.push(text);
   }
@@ -179,6 +180,7 @@ function renderItem(item) {
   if (item.choices?.length && item.pick) lines.push(`  - pick: ${item.pick}`);
   if (item.suggest) lines.push(`  - suggest: ${item.suggest}`);
   if (item.run) lines.push(`  - run: ${item.run}`);
+  if (item.pin) lines.push('  - pin: yes');
   for (const e of item.events) lines.push(`  - ${e.at} ${e.who}: ${e.what}`);
   lines.push(...item.notes);
   return lines.join('\n');
@@ -517,26 +519,41 @@ export const run = (file, id, words = '') => update(file, id, item => {
   item.run = text;
   event(item, 'agent', text ? `run — ${text}` : 'run cleared');
 });
+// A pinned item (e.g. a setting the human switches with its choices) stays at the top of every app tab without
+// counting as something that needs the human.
+export const pin = (file, id, value = 'on') => update(file, id, item => {
+  if (!['on', 'off'].includes(value)) fail(`invalid pin: ${value} (on or off)`);
+  const on = value === 'on';
+  if (on === !!item.pin) return;
+  item.pin = on;
+  event(item, 'agent', on ? 'pinned' : 'unpinned');
+});
 export const start = (file, id, slug, phase = 'intent') => update(file, id, item => { item.sdlc = { slug: line(slug), phase: line(phase), state: '', action: '' }; event(item, 'agent', `started ${item.sdlc.slug}`); });
 export const phase = (file, id, value) => update(file, id, item => { if (!item.sdlc) fail('item has no slug'); item.sdlc.phase = line(value); event(item, 'agent', `phase ${item.sdlc.phase}`); });
 export const approved = (file, id, gate, words) => update(file, id, item => event(item, 'human', `approved ${line(gate)} — "${line(words)}"`));
 // `only` limits the status calls to one item id; the rest keep their last synced state.
 const inScope = (item, only) => !item.done && item.project && item.sdlc && (!only || item.id === only);
-async function readStatuses(file, kit, only) {
-  const statuses = [];
-  for (const item of load(file).items) {
-    if (!inScope(item, only)) continue;
-    const previous = item.sdlc;
-    let current;
-    try {
-      const { stdout } = await execute('bash', [path.join(kit, 'sdlc.sh'), 'status', previous.slug, '--json'], { cwd: await nativePath(projectPath(item.project)) });
-      current = JSON.parse(stdout).features.find(f => f.slug === previous.slug);
-      if (!current || !current.state) throw new Error(`feature not found: ${previous.slug}`);
-    } catch (error) {
-      current = { ...previous, state: 'BLOCKED', action: line((error.stderr || error.message).replace(/[\r\n]+/g, ' ')) };
-    }
-    statuses.push({ id: item.id, project: item.project, previous, current });
+// sdlc.sh status is read-only, so items are read a few at a time; one at a time took about 7 s for 37 items
+// and over 60 s while other syncs ran at the same time.
+const STATUS_READERS = 6;
+async function readStatus(item, kit) {
+  const previous = item.sdlc;
+  let current;
+  try {
+    const { stdout } = await execute('bash', [path.join(kit, 'sdlc.sh'), 'status', previous.slug, '--json'], { cwd: await nativePath(projectPath(item.project)) });
+    current = JSON.parse(stdout).features.find(f => f.slug === previous.slug);
+    if (!current || !current.state) throw new Error(`feature not found: ${previous.slug}`);
+  } catch (error) {
+    current = { ...previous, state: 'BLOCKED', action: line((error.stderr || error.message).replace(/[\r\n]+/g, ' ')) };
   }
+  return { id: item.id, project: item.project, previous, current };
+}
+async function readStatuses(file, kit, only) {
+  const items = load(file).items.filter(item => inScope(item, only));
+  const statuses = new Array(items.length);
+  let next = 0;
+  const reader = async () => { while (next < items.length) { const i = next++; statuses[i] = await readStatus(items[i], kit); } };
+  await Promise.all(Array.from({ length: Math.min(STATUS_READERS, items.length) }, reader));
   return statuses;
 }
 const syncChanged = Symbol('inbox changed during status');
