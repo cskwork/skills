@@ -35,7 +35,7 @@ Install the local voice skill:
 npx skills@latest add cskwork/skills --skill caveman -g
 ```
 
-The included system prompt does not set a reply style. To make Caveman your default, add to your prompt: "Use the caveman skill by default for user replies; explicit style requests override this default." Say `stop caveman` or `normal mode` to disable it for the session. `attention-kind` remains available on request. This installs the voice skill only; it does not install the Caveman proxy, routing, or telemetry.
+The included system prompt does not set a reply style. To make Caveman your default, add to your prompt: "Use the caveman skill by default for user replies; explicit style requests override this default." Say `stop caveman` or `normal mode` to disable it for the session. This installs the voice skill only; it does not install the Caveman proxy, routing, or telemetry.
 
 ## System prompt
 
@@ -71,7 +71,7 @@ The included system prompt does not set a reply style. To make Caveman your defa
 | [grilling](skills/productivity/grilling) | Interview the user in frontier rounds until a plan or design tree is settled with nothing silently assumed. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [teach](skills/productivity/teach) | Teach a new skill or concept over multiple sessions in a stateful workspace (mission, glossary, resources, learning records). | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [caveman](skills/productivity/caveman) | Terse reply style: answer first, preserve technical facts and exact payloads. Local voice skill only. | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) |
-| [attention-kind](skills/productivity/attention-kind) | Answer in the ADHD-friendly Attention-kind style: one-sentence bottom line first, arrow-marked bold points, short by default, expanding only on what is vital while preserving numbers, conditions, and warnings. | [alexgreensh/attention-span](https://github.com/alexgreensh/attention-span) |
+| [wait-what](skills/productivity/wait-what) | Ask the agent to explain its last message again, with missing context, plain language, and project glossary terms. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [fluent-korean](skills/productivity/fluent-korean) | Write clear, fluent Korean: keep particles and endings, end sentences with a predicate, use plain words instead of metaphors, avoid em-dashes. Converted from an output style to a skill. | [snflkd/fluent-korean](https://github.com/snflkd/fluent-korean) |
 | [handoff](skills/productivity/handoff) | Compact the conversation into a handoff document for another agent. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [writing-for-agents](skills/productivity/writing-for-agents) | How to write skills, AGENTS.md, and CLAUDE.md for agents. | [mattpocock/skills](https://github.com/mattpocock/skills) |
