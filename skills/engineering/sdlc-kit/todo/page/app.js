@@ -25,6 +25,7 @@ function setLanguage(next) {
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
   for (const node of document.querySelectorAll('[data-i18n-label]')) node.setAttribute('aria-label', t(node.dataset.i18nLabel));
   for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
+  for (const node of document.querySelectorAll('[data-i18n-title]')) node.title = t(node.dataset.i18nTitle);
   const shown = ['error-text', 'approve-error', 'reply-error', 'live-text', 'artifact-title', 'approve-submit', 'approve-help'].map($);
   for (const node of [...shown, ...$('artifact').children]) if (node._message) node.textContent = say(node._message);
   detailVersion = '';
@@ -32,16 +33,21 @@ function setLanguage(next) {
 
 // Token stays in page memory. Keep the terminal's fragment so a reload can read it again.
 let openOnLoad = '';
-let token = '';
+let token = '', appWindow = false;
 {
   const hash = location.hash.slice(1);
   const params = new URLSearchParams(hash.includes('=') ? hash : '');
   token = params.get('t') || '';
+  // The tray marks its app windows with app=1; only those take part in single-window (see singleWindow).
+  appWindow = params.get('app') === '1';
   if (!hash.includes('=') && /^[0-9a-f]{6}(?:-\d+)?$/.test(hash)) openOnLoad = hash;
   if (params.get('id')) openOnLoad = params.get('id');
 }
 
 let items = [], file = '';
+// The board's optional feed (see web.mjs readFeed); untrusted text, shown with textContent only.
+let feed = null, feedError = '';
+const listeners = []; // views that redraw after every snapshot (board.js)
 let seenSnapshot = false, changedAt = null;
 const drafts = new Map(); // item id -> {reply, words}
 // The inbox keeps one event per line, so the server rejects line breaks; join the lines the textarea allows.
@@ -51,7 +57,12 @@ const oneLine = value => value.trim().replace(/\s*[\r\n]+\s*/g, ' / ');
 class RequestError extends Error {
   constructor(source, status) { super(say(source)); this.source = source; this.status = status; }
 }
+let inFlight = 0;
 async function api(path, body) {
+  inFlight++;
+  try { return await request(path, body); } finally { inFlight--; }
+}
+async function request(path, body) {
   let response;
   try {
     response = await fetch(path, {
@@ -269,13 +280,17 @@ const heads = new Map(); // link url -> li
 function headRow(ticket) {
   let li = heads.get(ticket.url);
   if (!li) {
+    // The heading sits inside the item: a list may only hold list items.
     li = el('li', 'ticket-head');
-    li.setAttribute('role', 'heading');
-    li.setAttribute('aria-level', '3');
+    const heading = el('span');
+    heading.setAttribute('role', 'heading');
+    heading.setAttribute('aria-level', '3');
+    li.append(heading);
+    li._heading = heading;
     li._head = ticket.url;
     heads.set(ticket.url, li);
   }
-  if (li.textContent !== ticket.label) li.textContent = ticket.label;
+  if (li._heading.textContent !== ticket.label) li._heading.textContent = ticket.label;
   return li;
 }
 function patchList(list, wanted, groups = false) {
@@ -300,6 +315,7 @@ function apply(data) {
   const before = new Map(items.map(i => [i.id, i]));
   items = Array.isArray(data.items) ? data.items : [];
   file = data.file || file;
+  if ('feed' in data) { feed = data.feed && typeof data.feed === 'object' ? data.feed : null; feedError = data.feedError || ''; }
   // Pinned items (settings) stay on top, as in the app.
   const open = items.filter(i => !i.done).sort((a, b) => Number(!!b.pin) - Number(!!a.pin)), done = items.filter(i => i.done);
   queue = queueOf(items);
@@ -334,6 +350,7 @@ function apply(data) {
   }
   syncPane();
   if (detailId) renderDetail();
+  for (const listener of listeners) listener();
   return before;
 }
 
@@ -400,7 +417,12 @@ function startEdit(li) {
     (next?.querySelector('[data-role="title"]') || $('add-text')).focus();
   };
   input.addEventListener('keydown', event => {
-    if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      // Enter also confirms a Hangul (IME) syllable; committing then would cut the title short. Safari reports it as 229.
+      if (event.isComposing || event.keyCode === 229) return;
+      finish(true);
+    }
     else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(false); }
   });
   // Only Enter commits: moving a live row can blur its editor without a human decision.
@@ -479,6 +501,8 @@ $('add').addEventListener('submit', async event => {
 document.addEventListener('keydown', event => {
   if ((event.key !== '/' && event.key !== 'n') || event.altKey || event.ctrlKey || event.metaKey) return;
   const t = event.target;
+  // The list's add shortcut; the board has its own keys.
+  if (document.body?.dataset?.view && document.body.dataset.view !== 'list') return;
   if (($('detail').open && !isWide) || t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
   event.preventDefault();
   addText.focus();
@@ -849,6 +873,32 @@ $('lang').addEventListener('change', () => {
   apply({ items, file });
   announce(t('announce.language', { name: locales[lang].name }));
 });
+
+// The board (board.js, a separate module) reads state and acts through this; the list keeps its own code paths.
+const busyChecks = [() => inFlight > 0 || adding || !!$('add-text').value.trim() ||
+  [...drafts.values()].some(draft => (draft.reply.trim() && draft.reply !== draft.seed) || draft.words.trim())];
+const busy = () => busyChecks.some(check => check());
+globalThis.todoPage = {
+  get items() { return items; }, get feed() { return feed; }, get feedError() { return feedError; },
+  get lang() { return lang; }, get t() { return t; }, get token() { return token; },
+  api, apply, announce, showError, sourceOf, oneLine, say,
+  subscribe(listener) { listeners.push(listener); if (seenSnapshot) listener(); },
+  addBusyCheck(check) { busyChecks.push(check); }
+};
+
+// One board window: the tray opens a new app window (#…&app=1) on every click, so a newer one asks older ones to
+// close. Only app windows talk; a tab opened with `todo web --open` never closes. A window with an unsent draft or
+// a request in flight stays. A browser closes only script-opened or single-entry windows; otherwise nothing happens.
+function singleWindow(Channel = globalThis.BroadcastChannel, app = appWindow) {
+  if (!app || typeof Channel !== 'function') return null;
+  const channel = new Channel('sdlc-todo-board'), born = Date.now();
+  channel.addEventListener('message', event => {
+    if (event.data?.type === 'board-open' && event.data.at >= born && !busy()) globalThis.close?.();
+  });
+  channel.postMessage({ type: 'board-open', at: born });
+  return channel;
+}
+singleWindow();
 
 if (!token) {
   setLive('off', 'live.off');
