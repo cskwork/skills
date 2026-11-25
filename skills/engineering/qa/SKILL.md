@@ -20,7 +20,7 @@ Each side has its own oracle; the code under test is never its own oracle.
 | mode | `all` | `all` (both sets in one launch), `e2e` or `frontend` (real users), `data` or `backend` (API and data analysts) |
 | target | current repo and its dev environment | URL, repo path, ticket key, feature name |
 | `--agents N` | `5` | 1-10 per mode |
-| `--model M` | `sonnet` (Sonnet 5.5) | Claude alias `sonnet` `opus` `haiku` `fable` or full id; non-Claude id (e.g. `gpt-6.1-sol`) for `data` only |
+| `--model M` | `sonnet` (Sonnet 5.5) | Claude alias `sonnet` `opus` `haiku` `fable` or full id; non-Claude id (e.g. `gpt-6.2-sol`) for `data` only |
 | `--effort E` | `medium` | `low` `medium` `high` `xhigh` `max` |
 | `--since REF` | merge-base with the default branch; last 7 days when the branch has no own commits | git ref or date |
 
