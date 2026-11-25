@@ -37,6 +37,16 @@ jobs:
             dest: skills/agents/update-all
           - repo: cskwork/sol-skill
             dest: skills/agents/sol
+          - repo: cskwork/qa-skill
+            dest: skills/engineering/qa
+          - repo: cskwork/pre-commit-gate-skill
+            dest: skills/engineering/pre-commit-gate
+          - repo: cskwork/sql-walkthrough
+            src: skills/sql-walkthrough
+            dest: skills/engineering/sql-walkthrough
+          - repo: cskwork/pi-setup-public
+            src: skills/db-intelligence
+            dest: skills/engineering/db-intelligence
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
