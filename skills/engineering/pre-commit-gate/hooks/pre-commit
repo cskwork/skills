@@ -1,0 +1,40 @@
+#!/bin/sh
+# pre-commit-gate: block a code commit whose staged change did not pass the gate.
+# Gate 3 of SKILL.md records a receipt (HEAD and staged tree) after verify and
+# review pass on the staged change; this hook compares it with what is about to
+# be committed. Run it after any hook that rewrites the index.
+#
+# A clean `git merge` does not run pre-commit. A merge finished by hand after
+# conflicts does, and needs a receipt like any other code commit.
+
+# Docs-only commits run gate 4 alone. Renames count as delete plus add, so a
+# code path moved under a docs name still counts as code.
+files=$(git -c core.quotePath=false diff --cached --name-only --no-renames \
+  --ignore-submodules=none --diff-filter=ACMDT) || {
+  echo "pre-commit-gate: cannot list the staged changes; commit blocked." >&2
+  exit 1
+}
+code=$(printf '%s\n' "$files" | grep -Ev '\.(md|rst|adoc)"?$|(^|/)LICENSE"?$')
+rc=$?
+if [ "$rc" -gt 1 ]; then
+  echo "pre-commit-gate: cannot classify the staged files; commit blocked." >&2
+  exit 1
+fi
+[ -z "$code" ] && exit 0
+
+receipt=$(git rev-parse --git-path pre-commit-gate-receipt)
+head=$(git rev-parse -q --verify HEAD || echo none)
+tree=$(git write-tree) || exit 1
+if [ -f "$receipt" ] && [ "$(cat "$receipt")" = "$head $tree" ]; then
+  exit 0
+fi
+
+{
+  echo "pre-commit-gate: no gate receipt for HEAD $head with staged tree $tree."
+  if [ -f "$receipt" ]; then
+    echo "The receipt is for '$(cat "$receipt")': the staged change moved after the gate ran."
+  fi
+  echo "Run the pre-commit-gate skill (verify, then review) on this staged change."
+  echo "Its gate 3 writes the verified snapshot '<HEAD or none> <tree>' to $receipt."
+} >&2
+exit 1
