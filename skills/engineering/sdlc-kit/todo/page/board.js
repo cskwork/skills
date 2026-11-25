@@ -22,6 +22,8 @@ const clock = ms => new Intl.DateTimeFormat(page.lang, { hour: '2-digit', minute
 const dateTime = ms => new Intl.DateTimeFormat(page.lang, { dateStyle: 'medium', timeStyle: 'short' }).format(ms);
 const alertLevel = alert => ['bad', 'warn'].includes(alert.level) ? alert.level : 'info';
 const feedAlerts = feed => list(feed?.alerts).map(record).filter(alert => alert && str(alert.text));
+// Copy buttons on rendered code blocks (markdown.js) speak the page's current language and announce the result.
+const copyOptions = { t, announce: text => page.announce(text) };
 const typing = target => target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName);
 
 // ---------- words ----------
@@ -365,12 +367,37 @@ function step(delta) {
 $('panel-close').addEventListener('click', closePanel);
 $('panel-prev').addEventListener('click', () => step(-1));
 $('panel-next').addEventListener('click', () => step(1));
+// Board keys. Escape works everywhere; single keys only outside a text box, so typing never triggers them.
+// No key approves: A only moves focus to Approve, where Enter or Space (the button's own activation) decides.
+const visible = node => node && !node.hidden && !node.closest?.('[hidden]');
+function shortcut(key) {
+  if (key === '?') { openKeys(); return true; }
+  if (!selectedKey) return false;
+  if (key === 'ArrowRight' || key === 'j') step(1);
+  else if (key === 'ArrowLeft' || key === 'k') step(-1);
+  else if (/^[1-9]$/.test(key)) {
+    const choice = $('panel-choices').hidden ? null : $('panel-choices').children[Number(key) - 1];
+    if (!choice || choice.disabled) return false;
+    choice.click();
+  } else if (key === 'r' && visible($('panel-reply'))) $('panel-reply-text').focus();
+  else if (key === 't' && visible($('panel-ticket'))) openTicket(panelCard?.link?.url);
+  else if (key === 'f' && visible($('panel-fix')) && !$('panel-fix').disabled) $('panel-fix').click();
+  else if (key === 'x' && panelTarget?.exec && !panelTarget.done && visible($('panel-run'))) page.confirmRun(panelTarget.id);
+  else if (key === 'm' && visible($('panel-content'))) $('panel-more').click();
+  else if (key === 'a' && visible($('panel-gate'))) { $('panel-approve').focus(); showTip($('panel-approve')); }
+  else return false;
+  return true;
+}
 document.addEventListener('keydown', event => {
-  if (currentView() !== 'board' || event.altKey || event.ctrlKey || event.metaKey) return;
-  if (event.key === 'Escape' && selectedKey) { event.preventDefault(); closePanel(); return; }
-  if (typing(event.target) || !selectedKey) return;
-  if (event.key === 'ArrowRight' || event.key === 'j') { event.preventDefault(); step(1); }
-  else if (event.key === 'ArrowLeft' || event.key === 'k') { event.preventDefault(); step(-1); }
+  // A shown tooltip is dismissed first, without moving focus (WCAG 1.4.13); the next Escape closes the panel.
+  if (event.key === 'Escape' && hideTip()) { event.preventDefault(); return; }
+  if (currentView() !== 'board' || event.altKey || event.ctrlKey || event.metaKey || $('keys-help').open || $('run-confirm').open) return;
+  if (event.key === 'Escape') {
+    if (selectedKey) { event.preventDefault(); closePanel(); }
+    return;
+  }
+  if (typing(event.target) || (event.repeat && !/^(?:ArrowLeft|ArrowRight|j|k)$/.test(event.key))) return;
+  if (shortcut(event.key)) event.preventDefault();
 });
 
 // ---------- panel width ----------
@@ -470,6 +497,8 @@ function renderPanel(now) {
   $('panel-prev').disabled = $('panel-next').disabled = !queue.length || (queue.length === 1 && at === 0);
   if (!card) return;
   const item = card.target, doc = documentOf(item);
+  // The command box keeps its own state (running, result), so it is drawn on every pass, not only on a new signature.
+  page.renderRun($('panel-run'), item, 'X');
   const loading = !!doc?.pending && !!item.brief && Date.now() - doc.started < skeletonMs;
   const sig = JSON.stringify([page.lang, card.key, card.members.map(m => [m.id, m.version, m.working?.what]), card.lane, card.entry, doc, loading, sending, showDetails]);
   if (sig === panelSig) return;
@@ -526,7 +555,7 @@ function renderPanel(now) {
 function questionOf(card, item, status, fields, now) {
   const yourCall = plain(fields['your call']);
   if (yourCall && yourCall.toLowerCase() !== 'none') return yourCall;
-  if (status.actor === 'you') return plain(status.gate ? t(`next.${status.kind}`) : item.waiting || item.sdlc?.action || t(`next.${status.kind}`));
+  if (status.actor === 'you') return plain(status.gate ? t(`next.${status.kind}`) : item.waiting || (item.exec ? t('run.ask') : '') || item.sdlc?.action || t(`next.${status.kind}`));
   if (status.actor === 'blocked') return plain(item.error || item.sdlc?.action) || t('field.unknown');
   if (status.actor === 'others') return plain(item.others || str(card.entry?.waitingText)) || statusLabel(t, item, now);
   return [statusLabel(t, item, now), plain(str(card.entry?.waitingText))].filter(Boolean).join(' · ');
@@ -540,6 +569,10 @@ function renderChoices(card, item) {
     button.type = 'button';
     button.disabled = sending;
     button.append(el('span', 'choice-number', String(index + 1)), el('span', 'choice-label', label));
+    if (index < 9) {
+      button.setAttribute('aria-keyshortcuts', String(index + 1));
+      button.dataset.tip = t('tip.choice', { n: index + 1, label });
+    }
     if (recommended) button.append(el('span', 'ai-badge', t('panel.ai')));
     button.addEventListener('click', () => answer(card, item, label));
     return button;
@@ -565,10 +598,11 @@ function renderGate(item, doc, status) {
   approve.disabled = sending || doc.gate !== status.gate;
   const section = glanceOf(doc.markdown);
   if (!section?.markdown) { glance.replaceChildren(el('p', 'hint', t('panel.noGlance'))); return; }
-  import('./markdown.js').then(({ renderMarkdown }) => {
+  import('./markdown.js').then(({ renderMarkdown, addCopyButtons }) => {
     if (panelTarget?.id !== item.id) return;
     // renderMarkdown escapes all HTML first, as on the list's work document.
     glance.innerHTML = renderMarkdown(section.markdown);
+    addCopyButtons(glance, copyOptions);
   });
 }
 function renderProblem(item, status) {
@@ -603,7 +637,11 @@ function renderDetails(card, item, doc) {
   if (!doc) box.replaceChildren(el('p', 'hint', t('panel.noDocument')));
   else if (doc.pending) box.replaceChildren(el('p', 'hint', t('artifact.loading')));
   else if (doc.error) box.replaceChildren(el('p', 'field-error', t('artifact.failed', { message: doc.error })));
-  else import('./markdown.js').then(({ renderMarkdown }) => { if (panelTarget?.id === item.id) box.innerHTML = renderMarkdown(doc.markdown); });
+  else import('./markdown.js').then(({ renderMarkdown, addCopyButtons }) => {
+    if (panelTarget?.id !== item.id) return;
+    box.innerHTML = renderMarkdown(doc.markdown);
+    addCopyButtons(box, copyOptions);
+  });
   const history = $('panel-history');
   const events = card.members.flatMap(member => member.events.map(event => ({ ...event, member }))).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
   history.replaceChildren(...events.map(event => {
@@ -665,8 +703,13 @@ $('panel-reply').addEventListener('submit', event => {
   if (panelCard && panelTarget) answer(panelCard, panelTarget, text);
 });
 $('panel-reply-text').addEventListener('input', () => { if (panelTarget) draftOf(panelTarget.id).reply = $('panel-reply-text').value; });
+// Enter sends, as "Send" does; Shift+Enter is a new line. Enter that confirms a Hangul (IME) syllable never sends;
+// Safari reports it as keyCode 229 with isComposing already false.
 $('panel-reply-text').addEventListener('keydown', event => {
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); $('panel-reply').requestSubmit(); }
+  if (event.key !== 'Enter' || event.shiftKey) return;
+  event.preventDefault();
+  if (event.isComposing || event.keyCode === 229) return;
+  $('panel-reply').requestSubmit();
 });
 $('panel-approve').addEventListener('click', async () => {
   const item = panelTarget, doc = item && documents.get(docKey(item));
@@ -693,21 +736,38 @@ $('panel-fix').addEventListener('click', async () => {
 });
 
 // ---------- ticket window ----------
-// Ticket sites refuse frames, so the ticket opens in one named popup docked to the screen's right edge, and that
+// Ticket sites refuse frames, so the ticket opens in one named popup docked to the screen's left edge, and that
 // window follows the selection. Trade-off (decided 2026-11-19): following needs the opener link, because Chromium
 // lets a page with a cut opener neither navigate nor close its popup. So a hostile http(s) ticket page could redirect
 // this board window. It gains nothing: the token lives only in this page's URL fragment and memory, a redirected
 // window loses both, and another origin can never read them, so a fake page cannot approve or answer anything.
+// The decision panel never moves: it stays on the right, and the popup takes the left 45% of the screen beside it,
+// narrower (down to 480px) when a wide panel leaves less, so a full-screen board shows both.
+// In the tray app's own window (WKWebView, where the app adds window.ipc) the app shows tickets in the person's Chrome,
+// where their login lives, docked at the screen's left edge: the page only tells the app which ticket. `open` brings
+// that window forward (and makes it again when it was closed); `follow` moves an open one, behind the board.
 let ticketWindow = null, ticketUrl = '';
+const ticketMinWidth = 480, ticketGap = 16;
+const appTickets = () => (typeof window.ipc?.postMessage === 'function' ? window.ipc : null);
+// The app's ticket window takes http(s) pages off this machine only (the board's own server stays in the board).
+const loopback = new Set(['127.0.0.1', 'localhost', '[::1]']);
+const ticketPage = url => {
+  const host = isHttp(url) && /^https?:\/\/(?:[^@/?#\\]*@)?(\[[^\]]*\]|[^:/?#\\]*)/i.exec(url)?.[1].replace(/\.$/, '').toLowerCase();
+  return Boolean(host) && !loopback.has(host);
+};
 function openTicket(url) {
   if (!isHttp(url)) return;
+  const app = appTickets();
+  if (app && !ticketPage(url)) { page.showError({ key: 'panel.notTicket' }); return; }
+  if (app) { app.postMessage(JSON.stringify({ open: url })); ticketUrl = url; return; }
   if (ticketWindow && !ticketWindow.closed) {
     if (url !== ticketUrl) { ticketWindow.location.href = url; ticketUrl = url; }
     ticketWindow.focus();
     return;
   }
-  const width = Math.round(screen.availWidth * 0.45), height = screen.availHeight;
-  const left = (screen.availLeft || 0) + screen.availWidth - width, top = screen.availTop || 0;
+  const room = screen.availWidth - $('panel').offsetWidth - ticketGap;
+  const width = Math.round(Math.max(ticketMinWidth, Math.min(screen.availWidth * 0.45, room)));
+  const height = screen.availHeight, left = screen.availLeft || 0, top = screen.availTop || 0;
   const opened = window.open(url, 'sdlc-ticket', `popup=yes,width=${width},height=${height},left=${left},top=${top}`);
   if (!opened) { page.showError({ key: 'panel.popupBlocked' }); return; }
   ticketWindow = opened;
@@ -717,11 +777,112 @@ function openTicket(url) {
 // Only a person's selection (a click or ←/→/j/k) moves the ticket window; live updates never call select().
 function followTicket(card) {
   const url = card?.link?.url;
+  const app = appTickets();
+  if (app) {
+    if (ticketUrl && ticketPage(url) && url !== ticketUrl) { app.postMessage(JSON.stringify({ follow: url })); ticketUrl = url; }
+    return;
+  }
   if (!ticketWindow || ticketWindow.closed || !isHttp(url) || url === ticketUrl) return;
   ticketWindow.location.href = url;
   ticketUrl = url;
 }
 $('panel-ticket').addEventListener('click', () => openTicket(panelCard?.link?.url));
+
+// ---------- keys and tooltips ----------
+// One table names each control's key: the tooltip shows it, aria-keyshortcuts announces it, the key list repeats it.
+const controlKeys = { 'panel-prev': ['', 'ArrowLeft K'], 'panel-next': ['', 'ArrowRight J'], 'panel-close': ['', 'Escape'],
+  'panel-reply-text': ['R', 'R'], 'panel-send': ['Enter', ''], 'panel-ticket': ['T', 'T'], 'panel-fix': ['F', 'F'],
+  'panel-more': ['M', 'M'], 'panel-approve': ['A, Enter', 'A'], 'keys-open': ['?', '?'], 'reply-send': ['Enter', ''] };
+for (const [id, [shown, aria]] of Object.entries(controlKeys)) {
+  if (shown) $(id).dataset.keys = shown;
+  if (aria) $(id).setAttribute('aria-keyshortcuts', aria);
+}
+const keyRows = [['← → · j k', 'keys.cards'], ['1–9', 'keys.choice'], ['R', 'keys.reply'], ['Enter', 'keys.send'],
+  ['Shift+Enter', 'keys.newline'], ['T', 'keys.ticket'], ['F', 'keys.fix'], ['X', 'keys.run'], ['M', 'keys.more'], ['A', 'keys.approve'],
+  ['?', 'keys.help'], ['Esc', 'keys.escape'], ['← → · Home End', 'keys.resize']];
+function openKeys() {
+  hideTip();
+  $('keys-list').replaceChildren(...keyRows.flatMap(([keys, label]) => {
+    const dt = el('dt');
+    dt.append(el('kbd', '', keys));
+    return [dt, el('dd', '', t(label))];
+  }));
+  if (!$('keys-help').open) $('keys-help').showModal();
+}
+$('keys-open').addEventListener('click', openKeys);
+
+// A shared tooltip shows each control's action and key at once on keyboard focus and after a short hover, which a
+// native title (about a second late, never on focus) cannot. While shown it also describes its control, it hides
+// when the person types, scrolls or presses Escape, and it never sits over the text box they are typing in.
+// Controls with a key or no visible words; the list's reply button shares the board's Enter.
+const tip = $('tip'), tipTargets = '#panel button, #panel-resize, #keys-open, #reply-form button, .code-copy';
+const popover = typeof tip.showPopover === 'function';
+if (!popover) tip.hidden = true;
+let tipFor = null, tipTimer;
+function tipText(node) {
+  if (node.dataset.tip) return node.dataset.tip;
+  if (node.dataset.i18nTip) return t(node.dataset.i18nTip);
+  const name = str(node.getAttribute('aria-label') || node.textContent).replace(/\s+/g, ' ').trim();
+  const keys = node.dataset.keys;
+  return keys && !name.includes(keys) ? t('tip.withKeys', { name, keys }) : name;
+}
+const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+function showTip(node) {
+  clearTimeout(tipTimer);
+  // A tooltip that would only repeat the button's visible words adds nothing, so it is not shown.
+  const text = tipText(node);
+  if (!text || text === str(node.textContent).replace(/\s+/g, ' ').trim() || !node.getClientRects().length) { hideTip(); return; }
+  if (tipFor !== node) {
+    hideTip();
+    tipFor = node;
+    // Only a description this script added is removed again.
+    if (!node.hasAttribute('aria-describedby')) { node.setAttribute('aria-describedby', 'tip'); node._tipOwned = true; }
+  }
+  tip.textContent = text;
+  if (popover) { if (!tip.matches(':popover-open')) tip.showPopover(); } else tip.hidden = false;
+  // Below the control, above when there is no room; never over the field being typed in.
+  const r = node.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, gap = 6;
+  const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8));
+  const field = typing(document.activeElement) && document.activeElement !== node ? document.activeElement.getBoundingClientRect() : null;
+  const at = top => ({ left, top, right: left + w, bottom: top + h });
+  const top = [r.bottom + gap, r.top - gap - h].find(y => y >= 8 && y + h <= innerHeight - 8 && !(field && overlaps(at(y), field)));
+  if (top === undefined) { hideTip(); return; }
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+function hideTip() {
+  clearTimeout(tipTimer);
+  if (!tipFor) return false;
+  if (tipFor._tipOwned) { tipFor.removeAttribute('aria-describedby'); tipFor._tipOwned = false; }
+  tipFor = null;
+  if (popover) { if (tip.matches(':popover-open')) tip.hidePopover(); } else tip.hidden = true;
+  return true;
+}
+const tipTarget = node => node?.closest?.(tipTargets) || null;
+document.addEventListener('pointerover', event => {
+  const node = tipTarget(event.target);
+  if (!node || event.pointerType === 'touch') return;
+  clearTimeout(tipTimer); // also keeps a shown tooltip when the pointer comes straight back
+  if (node === tipFor) return;
+  // Moving from one control to the next shows the next at once, as a toolbar does.
+  tipTimer = setTimeout(() => showTip(node), tipFor ? 0 : 300);
+});
+document.addEventListener('pointerout', event => {
+  const node = tipTarget(event.target);
+  if (!node || node.contains(event.relatedTarget) || tip.contains(event.relatedTarget)) return;
+  clearTimeout(tipTimer);
+  if (node === tipFor && !node.matches(':focus-visible')) tipTimer = setTimeout(hideTip, 100);
+});
+// The pointer may rest on the tooltip itself (WCAG 1.4.13); leaving it hides it unless its control has focus.
+tip.addEventListener('pointerleave', () => { if (tipFor && !tipFor.matches(':focus-visible')) tipTimer = setTimeout(hideTip, 100); });
+document.addEventListener('focusin', event => {
+  const node = tipTarget(event.target);
+  if (node?.matches(':focus-visible')) showTip(node); else hideTip();
+});
+document.addEventListener('focusout', event => { if (event.target === tipFor) hideTip(); });
+for (const type of ['pointerdown', 'input']) document.addEventListener(type, () => hideTip(), true);
+// A scroll moves the control away from a shown tooltip; one still waiting to show is placed where the control ends up.
+document.addEventListener('scroll', () => { if (tipFor) hideTip(); }, true);
 
 // ---------- runs ----------
 let runsDay = '';

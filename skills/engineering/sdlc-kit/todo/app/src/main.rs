@@ -1,10 +1,12 @@
 //! sdlc-todo: a small tray app for the sdlc-kit to-do. It never edits todo.md itself; every
 //! change goes through the same web API as the browser page, so the TUI, page and app agree.
 #![cfg_attr(windows, windows_subsystem = "windows")]
+mod board;
 mod client;
 mod i18n;
 mod prefs;
 mod theme;
+mod ticket;
 
 use client::{Artifact, Item, Launcher, Model, Session};
 use eframe::egui::{self, Align, Color32, CornerRadius, Layout, Margin, RichText, Sense, Stroke, ViewportCommand};
@@ -26,10 +28,26 @@ struct Shared {
     model: Option<Model>,
     conn: Conn,
     session: Option<Session>,
+    board_session: Option<Session>,
     child: Option<Child>,
     toast: Option<(String, bool, Instant)>,
     artifacts: HashMap<String, Result<Artifact, String>>,
     busy: HashSet<String>,
+}
+
+impl Shared {
+    /// The session the board should show, and whether to bring it forward (`requested`), or None to leave it be.
+    fn board_to_open(&mut self, requested: bool) -> Option<(Session, bool)> {
+        if self.conn != Conn::Live { return None; }
+        let session = self.session.as_ref()?;
+        // The board window is tied to its server's port and token. After a server replacement it loads the new
+        // address in place, open or hidden, without coming forward (on macOS; elsewhere a browser tab stays).
+        let replaced = cfg!(target_os = "macos")
+            && self.board_session.as_ref().is_some_and(|opened| opened != session);
+        if !requested && !replaced { return None; }
+        self.board_session = Some(session.clone());
+        Some((session.clone(), requested))
+    }
 }
 
 type State = Arc<Mutex<Shared>>;
@@ -149,7 +167,10 @@ fn open_url(url: &str) {
     let (program, args): (&str, Vec<&str>) = if cfg!(target_os = "macos") { ("open", vec![url]) }
         else if cfg!(windows) { ("rundll32.exe", vec!["url.dll,FileProtocolHandler", url]) }
         else { ("xdg-open", vec![url]) };
-    let _ = std::process::Command::new(program).args(args).spawn();
+    // Waited for on a thread of its own, so the finished handler is reaped instead of left as a zombie.
+    if let Ok(mut child) = std::process::Command::new(program).args(args).spawn() {
+        std::thread::spawn(move || { let _ = child.wait(); });
+    }
 }
 
 /// The board's address: the web page with the token in its fragment, as `urlOf` in todo/web.mjs builds it, plus
@@ -162,9 +183,10 @@ fn chrome_installed() -> bool {
     std::iter::once(PathBuf::from("/Applications")).chain(home).any(|dir| dir.join("Google Chrome.app").is_dir())
 }
 
-/// Opens the board in a window of its own: a Chrome app window (no tabs or address bar) on macOS when
-/// Chrome is installed, else the default browser. The token goes only into the URL handed to the browser.
-fn open_board(session: &Session) {
+/// The board in a browser, where the app's own board window cannot open (not macOS, or the webview failed): a Chrome
+/// app window (no tabs or address bar) on macOS when Chrome is installed, else the default browser. The token goes
+/// only into the URL handed to the browser.
+fn open_board_in_browser(session: &Session) {
     let url = board_url(session);
     if cfg!(target_os = "macos") && chrome_installed() {
         let opened = std::process::Command::new("open").args(["-na", "Google Chrome", "--args"]).arg(format!("--app={url}"))
@@ -175,6 +197,23 @@ fn open_board(session: &Session) {
     open_url(&url);
 }
 
+/// Shows the board, from any thread. On macOS it is the app's own board window (src/board.rs), made on the main
+/// thread; when its webview cannot start, the reason goes to stderr and the board opens in the browser instead.
+fn launch_board(session: Session, show: bool, lang: Lang) {
+    #[cfg(target_os = "macos")]
+    dispatch::Queue::main().exec_async(move || {
+        if let Err(error) = board::open_board(&board_url(&session), t(lang, "title"), show) {
+            eprintln!("sdlc-todo: the board window could not start ({error}); opening the board in the browser");
+            std::thread::spawn(move || open_board_in_browser(&session));
+        }
+    });
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (show, lang);
+        std::thread::spawn(move || open_board_in_browser(&session));
+    }
+}
+
 /// Shows the list window, the fallback for the board.
 fn show_list(ctx: &egui::Context) {
     ctx.send_viewport_cmd(ViewportCommand::Visible(true));
@@ -183,10 +222,10 @@ fn show_list(ctx: &egui::Context) {
 
 /// The tray's main action: the board while the server is live; otherwise the list window, which shows
 /// why it is offline, rather than a dead URL.
-fn show_board(state: &State, ctx: &egui::Context) {
-    let session = { let shared = state.lock().unwrap(); if shared.conn == Conn::Live { shared.session.clone() } else { None } };
-    match session {
-        Some(session) => { std::thread::spawn(move || open_board(&session)); }
+fn show_board(state: &State, ctx: &egui::Context, lang: Lang) {
+    let board = state.lock().unwrap().board_to_open(true);
+    match board {
+        Some((session, show)) => launch_board(session, show, lang),
         None => show_list(ctx),
     }
 }
@@ -211,6 +250,9 @@ fn open_terminal(command: &str) -> bool {
 }
 
 fn quit(state: &State) -> ! {
+    // The board's place waits half a second after a move; a quit right after one keeps it too.
+    #[cfg(target_os = "macos")]
+    board::save_now();
     if let Ok(mut shared) = state.lock() {
         if let Some(mut child) = shared.child.take() { let _ = child.kill(); }
     }
@@ -226,12 +268,19 @@ fn connect(state: State, ctx: egui::Context, launcher: Launcher, lang: Lang, mut
             let session = match client::live(&launcher.session_file) {
                 Some(session) => session,
                 None => {
-                    state.lock().unwrap().conn = Conn::Connecting;
+                    {
+                        let mut shared = state.lock().unwrap();
+                        shared.conn = Conn::Connecting;
+                        // Reap an exited server before its successor checks file-lock owners.
+                        if let Some(child) = shared.child.as_mut() { let _ = child.try_wait(); }
+                    }
                     ctx.request_repaint();
                     match launcher.serve() {
                         Ok((child, session)) => {
                             let mut shared = state.lock().unwrap();
-                            if let Some(mut old) = shared.child.replace(child) { let _ = old.kill(); }
+                            if let Some(mut old) = shared.child.replace(child) {
+                                if old.kill().is_ok() { let _ = old.wait(); }
+                            }
                             session
                         }
                         Err(error) => {
@@ -259,10 +308,10 @@ fn connect(state: State, ctx: egui::Context, launcher: Launcher, lang: Lang, mut
                 let mut shared = state.lock().unwrap();
                 shared.model = Some(model);
                 shared.conn = Conn::Live;
+                let board = shared.board_to_open(std::mem::take(&mut open_board_once));
                 drop(shared);
                 ctx.request_repaint();
-                // The same path as a click on the tray icon.
-                if std::mem::take(&mut open_board_once) { show_board(&state, &ctx); }
+                if let Some((session, show)) = board { launch_board(session, show, lang); }
             });
             if let Err(error) = result {
                 state.lock().unwrap().conn = Conn::Offline(error);
@@ -276,6 +325,8 @@ fn connect(state: State, ctx: egui::Context, launcher: Launcher, lang: Lang, mut
 impl App {
     fn new(cc: &eframe::CreationContext, launcher: Launcher, lang: Lang, background: bool) -> App {
         let prefs_file = launcher.session_file.with_file_name("todo-app.json");
+        #[cfg(target_os = "macos")]
+        board::set_state_file(prefs_file.with_file_name("todo-app-window.json"));
         let (mut prefs, prefs_error) = Prefs::load(&prefs_file);
         let fonts = theme::fonts();
         // Only a font found on this machine leads; a path that is gone falls back to the built-in one.
@@ -283,7 +334,7 @@ impl App {
         theme::install(&cc.egui_ctx, &prefs.font);
         cc.egui_ctx.set_zoom_factor(prefs.zoom);
         let state: State = Arc::new(Mutex::new(Shared {
-            model: None, conn: Conn::Connecting, session: None, child: None,
+            model: None, conn: Conn::Connecting, session: None, board_session: None, child: None,
             toast: prefs_error.map(|error| (error, true, Instant::now())),
             artifacts: HashMap::new(), busy: HashSet::new(),
         }));
@@ -291,7 +342,7 @@ impl App {
         let ctx = cc.egui_ctx.clone();
         let (menu_state, menu_ctx) = (state.clone(), ctx.clone());
         MenuEvent::set_event_handler(Some(move |event: MenuEvent| match event.id.0.as_str() {
-            "board" => show_board(&menu_state, &menu_ctx),
+            "board" => show_board(&menu_state, &menu_ctx, lang),
             "list" => show_list(&menu_ctx),
             "quit" => quit(&menu_state),
             _ => {}
@@ -300,10 +351,13 @@ impl App {
         let (click_state, click_ctx) = (state.clone(), ctx.clone());
         TrayIconEvent::set_event_handler(Some(move |event: TrayIconEvent| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-                show_board(&click_state, &click_ctx);
+                show_board(&click_state, &click_ctx, lang);
             }
         }));
         connect(state.clone(), ctx, launcher, lang, !background);
+        // macOS asks once whether the app may control Chrome (for the ticket window); ask now, not at the first ticket.
+        #[cfg(target_os = "macos")]
+        ticket::ask_permission_early();
         App { state, lang, tab: Tab::Focus, open: HashSet::new(), focus: None, focus_at: 0, drafts: HashMap::new(), notes: HashMap::new(),
             prefs, prefs_file, prefs_dirty: false, fonts, settings: false, hidden_at_start: false }
     }
@@ -415,6 +469,12 @@ fn markdown(ui: &mut egui::Ui, p: &theme::Palette, text: &str) {
 }
 
 impl eframe::App for App {
+    /// ⌘Q and other exits that end the event loop: keep the board's place, as the tray's Quit does.
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        #[cfg(target_os = "macos")]
+        board::save_now();
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if !self.hidden_at_start {
             self.hidden_at_start = true;

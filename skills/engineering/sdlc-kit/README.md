@@ -4,419 +4,459 @@
 
 ### Stop letting coding agents mark their own homework.
 
-**A portable SDLC for AI coding agents.**
+**A portable four-phase SDLC for AI coding agents, in any codebase and any domain.**
 
-Intent → spec → plan → build → evidence → maintain, with human approval gates, fresh-context review, and lessons for the next run.
+Intent → Plan → Build → Evidence. Parallel scouts before code, an adversarial reviewer after it, and a scored, routed proof at the end.
 
 [![Release](https://img.shields.io/github/v/release/cskwork/sdlc-kit?style=flat-square&color=C79A55)](https://github.com/cskwork/sdlc-kit/releases/latest)
 [![GitHub Pages](https://img.shields.io/badge/live_site-open-C79A55?style=flat-square)](https://cskwork.github.io/sdlc-kit/)
 [![Harness neutral](https://img.shields.io/badge/harness-pi_%C2%B7_Claude_Code_%C2%B7_Codex_%C2%B7_Gemini-24211E?style=flat-square)](#quick-start)
 
-[**See the live site**](https://cskwork.github.io/sdlc-kit/) · [**Install in 60 seconds**](#quick-start) · [**Read the contract**](AGENTS.md) · [**한국어**](README.ko.md)
+[**See the live site**](https://cskwork.github.io/sdlc-kit/) · [**Quick start**](#quick-start) · [**Read the contract**](SKILL.md) · [**한국어**](README.ko.md)
 
 </div>
 
 ---
 
-Coding is fast now. **Being wrong is still expensive.**
+Coding is fast now. **Being wrong is still expensive.** An agent that starts by
+writing code finds the side effects last, and an agent that checks its own work
+finds few. sdlc-kit puts understanding first and independent proof last, and
+keeps everything in between small.
 
-A common agent workflow starts with implementation. The agent receives a prompt, writes code, runs tests, and assumes the request was clear. sdlc-kit moves clarification and evidence earlier and keeps independent checks through the loop.
-
-It is adapted from [Anthropic's AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook), but it does not depend on Claude Code. The kit is plain Markdown plus shell scripts, so any harness that can read files and run commands can use it.
+It is adapted from [Anthropic's AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
+and needs no particular harness: the core loop is Markdown plus one shell script.
+The personal to-do is an optional Node 18+ add-on.
 
 > sdlc-kit is an independent project and is not affiliated with Anthropic.
 
-## Why it is different
-
-| Typical agent workflow | sdlc-kit |
-|---|---|
-| Starts coding from the first request | Explores history, code, feasibility, and the live product first, including any flow that already makes the same change; asks only what it cannot check itself |
-| Treats the user's diagnosis as truth | Labels claims `[verified: evidence]` or `[assumed: reason]` |
-| Keeps the plan inside one chat | Writes `intent.md`, `spec.md`, `plan.md`, `evidence.md`, and `delivery.md` to a searchable record store (`tools/kb.sh`), outside the application's git history |
-| Author checks its own work | Fresh review checks E2E, side effects, intent match and the final diff: one combined reviewer for approved compact work; three parallel verifiers and a separate adversary for full work |
-| A green test suite stands in for every claim | Each claim carries its own proof: a test that failed before the fix, a pin for a refactor, a measurement for a number |
-| Approval is a chat message that disappears | Approval records name the stage, artifact, time, and mode, and stay on disk in `.sdlc/approvals/` |
-| Failed attempt becomes forgotten context | Lessons go to a bounded index, business rules to their product area's page, durable facts to `DOMAIN.md`; a recurring lesson is promoted, a project check first |
-| "Done" is ambiguous | Every run closes as `shipped`, `abandoned`, `dead-end`, or `handed-off`, and `shipped` requires a verified delivery record |
-
 ## The loop
 
-```text
-┌────────────┐     human gate     ┌────────────┐     human gate
-│  1. INTENT │ ─────────────────▶ │   2. SPEC  │ ─────────────────┐
-│ intent.md  │                    │  spec.md   │                  │
-└─────▲──────┘                    └────────────┘                  ▼
-      │                                                     ┌────────────┐
-      │ new intent                                          │  3. PLAN   │
-      │                                                     │  plan.md   │
-┌─────┴──────┐                    ┌────────────┐             └─────┬──────┘
-│ 6. MAINTAIN│ ◀───────────────── │ 5. EVIDENCE│ ◀────────────────┘
-│ diagnosis  │   ship + observe   │evidence.md │   build + verify
-└────────────┘                    └────────────┘
-                                      ▲
-                                      │ fresh-context verifier
-                                ┌─────┴──────┐
-                                │  4. BUILD  │
-                                │code + tests│
-                                └────────────┘
+```mermaid
+flowchart LR
+  I["1 Intent"] -->|you approve| P["2 Plan"]
+  P -. gap found .-> P
+  P -->|plan approved| B["3 Build"]
+  B -. FAIL: fix, re-review .-> B
+  B -->|review PASS| E["4 Evidence"]
+  E -. plan was wrong, or same failure twice .-> P
+  E -. code failed .-> B
+  E -->|every must passes, 95%+ overall| D(["ship"])
+  E -->|no environment to run it| H(["you decide"])
 ```
 
-Each stage produces one reviewable artifact, and an approval opens the next. Intent, spec, and ship gates are your decisions; after you approve in chat, the agent may run the approval command (recorded as `mode: delegated-chat`). The plan gate is tiered: a fresh-context adversary reviews every plan, and a routine plan auto-approves (`mode: agent-adversary`). A trip-wire makes it a human gate: migration, data deletion, public API or contract change, security paths, infra or config, or scope beyond the spec. When a shipped change fails, Maintain diagnoses it and writes the next `intent.md`.
-
-`lazymode` in `.sdlc/config.md` moves the line between human and automatic gates. `init.sh` seeds `lazymode: 1`, and the agent asks which level you want.
-
-| lazymode | Gates that stay human |
-|---|---|
-| 0 | intent, spec, plan on a trip-wire, ship (the design above) |
-| 1 (default) | intent, spec, ship |
-| 2 | intent, ship |
-| 3 | intent |
-| 4 | none; the loop runs on its own |
-
-A waived gate is approved with `gates/approve.sh <stage> <artifact> --lazy --review "<what the review covered>"`, which refuses any gate the level keeps human. **lazymode moves who decides, never whether the work is reviewed or allowed.** Every waived gate still carries a review of the affected code and behavior. Risky work (data loss, public API, security paths, migrations, external delivery) needs your prior authorization, recorded with `--risk-authorized`, at every level. `tools/tripwire.sh` is a supplemental English keyword scan: a hit adds requirements, a clean scan clears nothing.
-
-Not every ticket needs all six stages:
-
-| Route | When | Flow |
+| Phase | What happens | Goes back when |
 |---|---|---|
-| Compact | Bounded and well understood; meets all [compact criteria](skills/1-intent/SKILL.md#which-route-compact-or-full) | `intent.md` carries files, proof, Reach, risk, baseline, and delivery target. Intent (gate) → build → ship. One fresh reviewer covers all three lenses, then the complete final diff check once on the same source |
-| Full | Anything ambiguous, broad, or risky | All six stages |
+| **1 Intent** | What you asked, what the agent understood, and the risks in it, scored for clarity across six areas. Below 90% the agent explores, reproduces the bug, researches the spec or asks the requester on the ticket, issue or pull request. It reads top-down in plain words — **At a glance** (What changes, Not included, Your call), **What was asked**, **Why this came up** (marked `(inferred)` when the agent had to infer it, with its evidence), **What we will do** with its Done when criteria, **Risks**, **Shipping** and **Questions for you** — and keeps the agent's evidence (**Key terms**, **How sure we are**, **Facts**) at the bottom; you approve it by answering "is this what you want?". | — |
+| **2 Plan** | Parallel scouts map source of truth, data, logic and user flow into `refs/`; one `PLAN.md` holds AS-IS → TO-BE, side effects and the scenarios QA will run. | the gap check finds holes |
+| **3 Build** | The smallest complete change, committed, then a separate adversarial reviewer. | the review FAILs: fix it, review again |
+| **4 Evidence** | Real checks, then every scenario as its persona through the real interface. `sdlc.sh score` scores and routes it; the agent does not judge. | the plan was wrong or the same failure came twice → Plan; code failed → Build |
 
-The `Track:` line in `intent.md` records the route; incidents use the same routes. Eligibility, upgrades and re-approval follow [stage 1](skills/1-intent/SKILL.md#which-route-compact-or-full); bounded deviations follow the [build rules](skills/4-build/SKILL.md#execute). A ticket too foggy to pin down starts with a **map** (`map.md`: destination · decided · unknown · out of scope) that resolves one unknown per session before `intent.md` is written.
+Every way back is capped at three — three review FAILs, three returns to Plan,
+three to Build — then the loop stops for you, and only
+`sdlc.sh approve plan --human` resumes it. A scenario that could not run counts
+as failed, only you can remove a scenario, and every PASS needs its log.
+
+## How it is built
+
+No runtime: Markdown prompts the agent reads, one Bash script that records
+and routes, and an optional Node to-do. Full map:
+[docs/architecture.md](docs/architecture.md).
+
+```mermaid
+flowchart LR
+  K["SKILL.md · phases/ · roles/"] --> A["agent (author)"]
+  A -->|writes| W[".sdlc/work/slug/<br/>intent.md · PLAN.md · review.md · evidence.md"]
+  SUB["scouts · reviewer · QA<br/>(fresh contexts)"] -->|write| W
+  W --> S["sdlc.sh<br/>awk parsers + .state"]
+  HU["you"] -->|approve --human| S
+  S -->|"next: exit 0/10/20/30<br/>status --json"| A
+  T["todo/ (Node, optional)"] -->|status slug --json| S
+```
+
+Key decisions ([ADRs](docs/adr/)):
+
+- **Approvals bind bytes.** `approve` stores the sha256 of `intent.md` or
+  `PLAN.md` (the plan also stores the intent hash it was approved against) and
+  who approved; any edit closes the gate (`gate_intent`, `gate_plan` in
+  [`sdlc.sh`](sdlc.sh), [ADR 0002](docs/adr/0002-hash-bound-approvals.md)).
+- **Reviewed code is shipped code.** A review PASS records every bound repo's
+  HEAD; `score` and `close` refuse a different or dirty commit
+  (`review_heads`, `validate_commits` in `sdlc.sh`).
+- **The script routes, not the agent.** `sdlc.sh score` sends failures to Plan
+  or Build, or to you, with fixed caps of three
+  ([ADR 0003](docs/adr/0003-script-scores-and-routes-evidence.md)).
+- **One script, four phases.** v2 replaced six stages and about 7,000 script
+  lines with `sdlc.sh` (about 600 lines today)
+  ([ADR 0001](docs/adr/0001-four-phases-one-script.md),
+  [v2.0.0 changelog](log/changelog-v2.0.0.md)).
+- **Independent eyes by contract.** Scouts, reviewer and QA are separate role
+  prompts ([`roles/`](roles/)) run as subagents; this is a rule in
+  [`SKILL.md`](SKILL.md), not something the script can enforce.
 
 ## Quick start
 
-Requires `bash`, `git`, and coreutils, which macOS and Linux already have. On Windows, use **Git Bash** (bundled with [Git for Windows](https://gitforwindows.org/)) or WSL, and run every kit command there, including the ones your agent runs. PowerShell and cmd cannot execute the scripts.
-
-Before the first Windows command, run the [actual-shell preflight](docs/windows.md)
-for executable selection, paths with spaces, native Python and Git ownership.
-Use its proven shell context; repairs stay process-scoped to exact paths.
-
 ```bash
-# 1. Install once
+# 1. Install once, and link it where your agent finds skills
 git clone https://github.com/cskwork/sdlc-kit ~/sdlc-kit
+ln -s ~/sdlc-kit ~/.claude/skills/sdlc-kit      # Claude Code; use your harness's skills folder
 
-# 2. Seed one project or monorepo shipping unit
+# 2. Seed a project (or one shipping unit of a monorepo)
 cd /path/to/your-project
-~/sdlc-kit/init.sh
-
-# 3. Review the proof commands (build, test, lint, run);
-#    the agent fills empty ones from the repo and runs each once
-$EDITOR .sdlc/config.md
+~/sdlc-kit/sdlc.sh init
+$EDITOR .sdlc/config.md                          # build, test, lint, run, e2e, qa
 ```
 
-Then point your harness at the routing contract by adding `For SDLC work, read ~/sdlc-kit/AGENTS.md and follow it.` to its project instruction file:
+Without a skills folder, add `For SDLC work, read ~/sdlc-kit/SKILL.md and
+follow it.` to the harness's instruction file (`AGENTS.md`, `CLAUDE.md`,
+`GEMINI.md`). Then ask for a change in plain words — "add CSV export",
+"fix the login redirect" — and the agent runs the loop. `sdlc.sh next <slug>`
+always says what comes next.
 
-| Harness | File |
-|---|---|
-| pi, Codex CLI | `AGENTS.md` |
-| Claude Code | `CLAUDE.md` |
-| Gemini CLI | `GEMINI.md` |
-| Cursor / other agents | the instruction file the harness loads, or paste `AGENTS.md` into the session |
+## What one feature leaves behind
 
-Now say:
-
-```text
-Start SDLC for <your feature, bug, or change>
+```
+.sdlc/work/<slug>/
+  intent.md     what was asked and why, what we will do, risks, and how sure we are
+  refs/         scout findings and the intent check: source.md data.md logic.md flow.md learnings.md intent-check.md
+  PLAN.md       one page: understanding, AS-IS → TO-BE, side effects, changes, scenarios
+  review.md     reviewer rounds, each ending in VERDICT
+  evidence.md   checks, one result row per scenario, shipping
+  logs/         raw output behind every PASS and FAIL; scripts/ re-runs each scenario
+  events.log    one line per state change: UTC time, command, phase after, result, detail (append-only)
 ```
 
-The agent routes to Stage 1, explores the project, and asks one evidence-backed question at a time. In a project with `.sdlc/`, a plain change request ("fix the login redirect") starts the loop too; read-only questions do not.
+`sdlc.sh stats [--json] [--since YYYY-MM-DD]` reads those logs across open and
+archived slugs: counts by phase and state, median and p90 time per phase,
+score rounds, returns to plan or build, the top BLOCKED reasons (Observed of
+BLOCKED rows) and closes per week. A slug without `events.log` (one made by an
+older kit) counts as legacy, and one whose log does not start with `new` (in
+flight when logging began) as partial; both are left out of the timings. A
+failed append to `events.log` warns and never undoes the command. `--since` keeps closes,
+phase times and archived slugs from that date on.
 
-## A 60-second example
+Closed features move to `.sdlc/archive/`, with reproducible caches under
+`logs/` (`gradle-home`, `node_modules`, `build`, … — config.md `prune:`)
+removed. Verified facts move to the `memory` folder: what the project taught
+us that the code cannot tell cheaply, each fact line ending in its basis and
+date (`[verified: <path> @ <sha> | as-of: <date>]`, `[source: <slug or
+transcript> | as-of: <date>]` or `[unconfirmed]`). Agents write a page when
+they verify such a thing or hit a trap, not only at close. Its `INDEX.md`
+starts with a hand-kept `## Core` — the few rules every agent needs, one line
+and a link each, at most 25 lines and `memory_core_kb` — above a generated
+list of one line per page (`sdlc.sh memory index` rebuilds it; `close`
+refreshes it). The index also lints: links to missing files, `MOVED TO`
+stubs, pages without a basis tag, pages over `memory_page_kb`, and pages over
+8,000 bytes without a `## Current picture`. Agents read the index first, then
+only the pages it names, and grep memory when it has no entry.
+`close <slug> shipped` needs a `Memory:` line in evidence.md's Shipping: the
+pages updated, or `none — <why>`. Its `glossary.md` holds the project's terms:
+Intent matches each request's terms against it, and Evidence adds the terms a
+feature settled.
 
-```text
-you    Start SDLC for claims status self-service
-agent  I checked the current API, UI flow, git history, and test harness.
-       One claim in the request is wrong. Here is the evidence...
+`sdlc.sh dream --check` exits 10 once 3 slugs closed (shipped or dropped)
+since the last dream, or 14 days passed with at least one close — never with
+none — and prints the count, e.g. `due: 3/3 closes since <time>`.
+`sdlc.sh dream` then prints a brief (`roles/dreamer.md`) for a fresh agent,
+recording nothing: it verifies memory against the code at HEAD and, for what
+happened in a session, against the slug's transcripts and `logs/`; fixes,
+supersedes or deletes stale notes; merges duplicates; turns mistakes repeated
+across sessions into rules; promotes and demotes `## Core` rules; harvests the
+closed slugs and keeps memory within budget. Its last step,
+`sdlc.sh dream --done [--through <time>] [--note <text>]`, records the run in
+`.dream-state` (the brief names the `--through` time, so slugs closed after
+the brief stay due) and adds a `.dream-log.md` line if the dreamer wrote none.
+A scheduler that fails to start the dreamer loses nothing.
 
-       [grill continues one question at a time]
+Transcripts are the session record dreaming checks notes against. Set
+`transcripts:` to a shell command, run in the project root with `{slug}` and
+`{since}` (the last dream's UTC time) replaced, that prints the paths or
+`path:line` hits of that slug's session transcripts or logs, for example
+`transcripts: grep -rln {slug} ~/agent-sessions`. The brief lists at most
+`transcripts_max` hits per slug, as `path` or `path:line` only — no transcript
+text — and the dreamer greps them rather than reading whole files.
 
-agent  intent.md is ready. Review the Human summary.
-you    approve
-agent  APPROVED: intent of claims-status (.sdlc/work/claims-status/intent.md)
-       recorded with mode: delegated-chat
+Each kind of knowledge has one home: the memory folder holds project
+knowledge; other memory stores you run (an assistant's personal memory, a
+notes system) keep their own kind, such as preferences or raw history. List
+them in `peers:` (space- or comma-separated paths, `~` and globs allowed,
+relative to the project root). The brief lists each with its file count and
+size, never its content; the dreamer greps them for the facts it touches,
+never edits them, and reports each duplicate or contradiction as
+`peer: <peer file> duplicates|contradicts <memory page> — propose: keep in
+<page>, remove from peer` for a person to act on. Nothing is moved in bulk.
 
-       Stage 2 starts from the approved artifact.
-```
+Optional config.md keys, with their defaults: `transcripts:` and `peers:`
+(empty: none),
+`transcripts_max: 20`, `memory_core_kb: 2`, `memory_page_kb: 16`,
+`memory_top_kb: 64` and `memory_total_kb: 256` (index warnings),
+`dream_every: 3` and `dream_max_days: 14`, `stages:` (empty: one-step
+shipping; see Shipping in stages),
+`prune: gradle-home .gradle node_modules build .m2 target` (empty prunes
+nothing) and `archive_warn_mb: 50`.
 
-There is no hidden state and no vendor-specific hook. The files are the protocol.
+## Config
 
-## What it produces
+`.sdlc/config.md` is the only project-specific file: the `build`, `test`,
+`lint`, `run` and `e2e` commands, the `qa` tool that drives screens or APIs,
+an optional `qa_runner` adapter with its `qa_session` sign-in command,
+`human_gates` (default `intent`; add `plan` to approve every plan yourself — a
+plan with a risk flag always asks), the `memory` folder, and `repos` (the
+repositories a review binds — list them when the project root holds many,
+or name them per review with `sdlc.sh review <slug> pass --repos "<path> ..." "<note>"`;
+empty means every one under it). `.sdlc/` stays
+out of git through `.git/info/exclude`; point `memory:` at a tracked folder
+to share what the team learns.
 
-Per feature, inside the **target project**:
+`adapters/e2e/` is one such runner: with `qa_runner: e2e`, QA writes each
+browser or mobile scenario as an [e2e](https://www.npmjs.com/package/e2e)
+test with a deterministic layer (the evidence, no model) and an optional
+agent layer that replays without model calls on later rounds. The kit
+vendors e2e's agent guide (Apache-2.0, pinned) so it works offline;
+`adapters/e2e/update.sh [version]` refreshes it.
 
-```text
-.sdlc/                            # gitignored in full: records are knowledge, not source
-├── README.md                     # generated contents page (tools/kb.sh index)
-├── config.md                     # real build/test/lint/run commands, lazymode
-├── approvals/                    # local gate records
-│   └── <slug>.<stage>.approval   # stage · digests · time · mode
-├── memory/
-│   ├── POLICY.md                 # your hard rules; agents transcribe only
-│   ├── INDEX.md                  # ≤50 lines of lesson pointers
-│   ├── DOMAIN.md                 # terms, facts, and constraints that span areas
-│   ├── areas/<menu path>.md      # one page per product area
-│   └── lessons/<date>-<lesson>.md
-├── work/<slug>/                  # OPEN features only
-│   ├── origin.md                 # the ticket / 기획서 as requested
-│   ├── intent.md                 # problem · proof · success · scope · route
-│   ├── spec.md                   # Human summary · AS-IS → TO-BE · contract
-│   ├── plan.md                   # files · order · reach · risks · proof
-│   ├── evidence.md               # commands · outputs · observed behavior
-│   ├── delivery.md               # target · delivered source · how it was verified
-│   ├── qa-guide.md               # how a person checks it: account · menu · steps
-│   ├── summary.md                # the reader's page, kept current
-│   ├── harvest.md                # memory candidates, merged at close
-│   ├── deviations.md             # build-time differences
-│   ├── progress.md               # heartbeat: one live line
-│   ├── baseline.txt              # brownfield behavior before the change
-│   └── scratch/                  # bulk logs and captures; artifacts quote the deciding lines
-└── archive/<slug>/               # closed features; close.sh moves them here
-    ├── CLOSED                    # shipped · abandoned · dead-end · handed-off
-    └── approvals/                # moves with the feature
-```
+## Shipping in stages
 
-`init.sh` adds one anchored line, `/.sdlc`, to the project's `.gitignore`, so a clone of the application does not carry the records. While a feature is open, `status.sh` shows its heartbeat as a `now →` line with its age.
-
-**Written to be skimmed.** Gate requests and Human summaries lead with the bottom line, then one bold `→` point each, so the bold alone carries the answer and every warning; records state each fact once. AGENTS.md rule 8, adapted from [Attention-kind](https://github.com/alexgreensh/attention-span).
-
-**Where the records live is your choice.** By default they sit in the project's working copy. `init.sh . --area ~/knowledge` puts them in `<area>/<unit>-<checkout-id>/` instead, with `.sdlc` linked to it: one store per checkout, so two worktrees never share approvals. Every script that writes to the store or reports a gate verdict refuses when `<store>/PROJECT` names another checkout, so a copied working copy cannot open or close the original's features. Reading is not bound: `tools/kb.sh show|search|list` still works. Nothing is ever moved for you, and **the store is yours to back up**. The kit directory stays framework-only.
-
-**Knowledge is filed by product area.** For a web app an area is one menu, named by its menu path (`학습 > 평가 > 제출`); otherwise a module, API, job, or CLI command. Each area has one page, `memory/areas/학습 - 평가 - 제출.md`, written for a non-developer: business rules P1, P2…, figures N1, N2… when the area shows counts, rates, scores, or charts, how it works, and one history row per feature that changed it. A folded evidence block at the bottom holds sources, code locations, and a `Drive:` line: how a user reaches the area, the command or tool that drives it, the end state that proves it, and the traps. Ship harvests that line from the E2E check, and the next verifier starts from it. A feature's `summary.md` names its area, the spec states which rules and figures it keeps or changes, and the Side effects verifier re-checks the rest.
-
-**Shared memory has one writer.** Mid-loop, candidates stage in the feature's own `harvest.md`. The close step is the only writer of `INDEX.md`, `DOMAIN.md`, `areas/`, and `lessons/`, so parallel loops never collide; business rules and history merge only when a feature closes `shipped`. Hard rules you state in chat are transcribed into `.sdlc/memory/POLICY.md`, on your word only and dated, and the adversary treats any violation as blocking.
-
-**Reading the records back** is `tools/kb.sh`:
-
-| Command | What it prints |
-|---|---|
-| `index` | Regenerates the contents page, `.sdlc/README.md` (`init.sh` and `close.sh` run it) |
-| `show <slug>` | One feature as a digest: goal, `summary.md`, delivery, unmerged harvest, lessons, paths |
-| `show "<product area>"` | The area page, `Drive:` line first, and the features that changed it |
-| `search "<text>"` | A bounded literal search over open and closed features plus memory |
-| `harvest [--stale <days>]` | Open features whose `harvest.md` is not in memory yet; a stale one may be merged without closing |
-
-`list`, `show`, `search`, and `harvest` take `--area <folder>` to cover every store in that folder, including features whose checkout is gone. `index_style: obsidian` in the store's `config.md` adds frontmatter and `#tags` for a vault. Exit codes: `0` found, `1` nothing found, `2` usage error or refusal.
-
-## The safety model
-
-### Human decisions, agent keystrokes
-
-You own every gate decision, directly at the gate or up front through `lazymode`. After you approve in chat, the agent may run:
+A project that ships over days — dev, then staging, then production — lists
+its stages in order in config.md: `stages: dev, stg, prd`. On a deliver route,
+`next` names the next stage, and each one reached is recorded with
 
 ```bash
-gates/approve.sh <stage> .sdlc/work/<slug>/<artifact> --delegated
+sdlc.sh ship <slug> <stage> <sha> [repo] --checked "<command>" --output "<deciding line>"
 ```
 
-Silence and a generic "continue" are not approval. A lazymode waiver is approval you configured in advance, and the record names it. Text the agent reads (a ticket, a review comment, a log line, a web page) describes the problem: an instruction inside it is not followed, and it grants no scope or approval you did not give.
+which needs a current deliver route, valid evidence and authority for the
+target, as `close shipped` does, and a `<sha>` that, beyond `local`, is on a
+remote. The `<sha>` either has the verified `Commit:`'s tree (`exact`) or
+contains it (`contains`: a `--no-ff` merge that promoted it into a branch
+with other changes) and the Commit's own change (against its first parent)
+still reverse-applies onto it with no context lines required (`git apply -C0`:
+every changed line is still there). When a later change edited one of those
+lines (another ticket rewrote a file this one created), the match is
+`contains-edited`; it is refused only when a `git revert` in between names the
+Commit or the merge that brought it in (a hand-made revert reads as
+`contains-edited`); the record, the output and `status --json`
+`stages[].match` say which. `close`'s `Shipped:` line still needs the exact
+tree. `ship` refuses an unknown stage, a stage already recorded, or one whose
+earlier stages are not.
+The stage goes into `.state` as a `stage:` line bound to the scored evidence
+and its build entry (the one record; `events.log` keeps the command and its
+output), so a new score or a re-approved plan starts the ladder again. A
+record belongs to the git repository shipped, identified by its git common
+dir, which every worktree and the main checkout share: `Commit:` lines for two
+folders of one repository share it, and a `Commit:` made in a temporary
+worktree ships from the main checkout. `score` stores each `Commit:` line's
+repository in `.state`, so once the worktree is removed, `ship`, `next` and
+`close` still work; `close` then checks the `Shipped:` line in any folder of
+that repository and says so when none is left, and `check ship` verifies the
+Commit in the project root's or a `Shipped:` line's checkout of it. A
+`Commit:` whose object is missing (its branch deleted and pruned, a shallow
+clone) is named as such.
+Repository identity uses `git rev-parse --path-format=absolute` (git 2.31+);
+an older git falls back to the relative common dir. Stage names are letters, digits, `.`, `_` and `-`, each listed once, separated
+by commas or spaces, with no empty item and no `#` comment on the line. `ship`
+takes the folder a `Commit:` line names, in that checkout or another of the
+same repository, and every `Commit:` line of that repository must match the
+`<sha>`. `status` and `next` show `deliver READY · at
+stg (2/3)`; `status --json` adds `stage` and `stages`. `close <slug> shipped`
+then needs the last stage for every `Commit:` repository, or `close <slug>
+shipped --at <stage> "<reason>"` naming a recorded one when the rest is out of
+the agent's reach; the reason and stage go into the closed note and the event.
+Without `stages:`, nothing changes and `ship` and `--at` are refused.
 
-### Bound to what was approved
+A plan with a risk flag set to yes also names how to undo it, under Risk
+flags: `- Undo: flag <name> | revert <what> | config <key> | none — <why>`.
+`approve plan` refuses it without one, and `next` hands the edit to the agent;
+a plan with every flag `no` needs none, and a plan approved before this rule
+stays approved.
+When Undo names a flag, Shipping's `Policy:` line carries its removal
+follow-up.
 
-`approve.sh` records the stage, the artifact's path and sha256, the digests of the upstream artifacts it was granted on (`origin.md` included), the time, the mode, and, at ship, the reviewed source snapshot. `check-gate.sh` opens the gate only while all of that still matches. Editing an approved artifact, or one upstream of it, closes the gate and prints the exact re-approval command. The hash is change detection, not authentication: it proves the bytes are the ones approved, never who approved them. The records are gitignored, so the trail lives on disk in `.sdlc/approvals/`, and re-cloning mid-feature means approving again.
+## Rules that never relax
 
-### Fresh-context review
+- **Authority is not a gate.** Data loss, migrations, public API changes,
+  security-sensitive code, infra changes, push, merge or deploy, and a
+  comment posted on a ticket need your prior words at every setting.
+- **Independent eyes.** Scouts, reviewer and QA run in fresh contexts, never
+  in the one that wrote the work.
+- **Proof, not claims.** No environment means BLOCKED, never PASS. A bug fix
+  needs a test that failed before the fix; a test for new behavior is seen
+  failing once without it.
+- **Shipped means what was verified.** Before any push, merge or deploy,
+  `sdlc.sh check ship <slug>` prints `GATE OPEN` only on a current deliver
+  route, at the commit QA verified, with authority for the target. `close`
+  refuses a shipped tree that differs from the verified commit.
 
-One delegate carries the loop; subagents are dispatched only where they buy something. Verification and adversarial review always run in a fresh context, because the author cannot review its own work. A harness that cannot provide one records an explicit gap in the evidence instead of quietly reviewing itself. Independent workers may run in parallel, with one writer per checkout.
-
-### Verification runs the real thing
-
-After build, full work uses three fresh verifiers in parallel and a separate
-fresh adversary. The approved compact Track uses one fresh reviewer for all
-three complete lenses below, followed by the complete adversarial diff check
-on the same final source. It still reports three lens `VERDICT:` lines and the
-adversary verdict; unchanged source, recipe and upstream inputs need no repeat
-dispatch or duplicate command run. Changes require fresh affected proof and
-final diff review. Record actual session/tool IDs when exposed (otherwise
-`unknown`), input/source identities, commands, exits, logs and deciding lines.
-
-| Lens | What it checks |
-|---|---|
-| E2E | The changed behavior, end to end through the interface a user or caller meets, with the project's own commands (`e2e:`, `qa:`, `run:` in `.sdlc/config.md`) |
-| Side effects | The baseline, the items that must stay untouched, and every other producer and consumer of the data shapes the change touches |
-| Intent match | The build read back against `origin.md`, the ticket or 기획서 snapshot the intent gate bound: covered, missing, and beyond, per success criterion |
-
-Each requirement runs happy, boundary, and negative cases, expectations written first, for every role and platform in scope. Three **reach** scenarios per change also vary how the change is met: another caller of the same behavior (entry), a record the change did not create (state), and a condition no requirement names (context). The plan lists every caller across the repositories and tiers that call the behavior; a change that refuses input those callers send today is a contract change and trips the plan gate.
-
-Before freezing scope, stage 1 captures actual callers and accepted stored
-inputs. The Side effects lens attacks applicable missing, empty, null,
-wrong-type and unknown values: valid legacy shapes remain accepted; invalid
-ones are safely refused without crashes or partial writes. Inapplicable cases
-need domain reasons. Compact eligibility depends on risk, affected surfaces
-and reversibility, never LOC. Exact known compact probes may be run by the
-author; uncertain or broad areas need fresh researchers. Review stays fresh.
-
-Three kinds of claim carry their own proof:
-
-| Claim | Proof |
-|---|---|
-| A bug is fixed | A regression test that fails on the pre-fix code for the reported reason, passes after, and stays in the suite; manual steps only when no test can reach the defect. A failure reported on a screen, an API call, or a job run is re-driven there after the fix |
-| No behavior change (refactor, rename, move) | A pin: a check green before the first edit and after the last, seen failing once on a deliberate break. Type checks and lint are not a pin |
-| A number (faster, smaller, cheaper) | The same command before and after, five or more runs a side, as median and range with errors and work done counted. A gap inside the spread is no difference |
-
-No environment to run in means NOT VERIFIED, stated as such in `evidence.md`; a green unit suite is never a silent substitute. A gap the project has hit before also gets a proposal for a feature that builds the missing piece in the project. A finding from any lens enters the build fix loop: three rounds, then you (`tools/auto.sh` reports `fixloop.exhausted`).
-
-Screens can be checked two ways. The default **agent** mode drives a browser through the `qa:` tool or whatever the harness has. **Jev** mode hands each UI scenario to [Jego](https://github.com/cskwork/ego-jev-ultrafast) as a plain-language goal with the texts that must appear, re-checks each result in a fresh tab, and writes one HTML report (screenshots, time, and cost per scenario) for the ship gate. `tools/qa-mode.sh set jev` switches every project until switched back (`--project` for one); see [`docs/jev-qa.md`](docs/jev-qa.md). When Jego is not usable, the verifier says so and uses agent mode.
-
-### "Shipped" means delivered
-
-The ship approval decides to release; it is not a release. Closing as `shipped` requires `delivery.md`: the agreed target (`local`, `pr`, or `deploy`), the delivered source, the command or project tool actually run to check the result, and its verbatim output. `close.sh` re-checks that the approved evidence and the reviewed source are unchanged, and refuses an absent, mismatching, or unconfirmed delivery. A `pr` or `deploy` `Source` must be a commit whose tree contains the reviewed source. Local work needs no production step.
-
-The last message of a delivered feature hands the human a way to check it themselves: `qa-guide.md` gives where to open it, which account and role (where the password is kept, never the password), the menu path, and numbered steps, each with what the screen should show, plus the before-fix symptom for a bug fix. The report quotes it in full, and it is archived with the feature. Steps come from what the E2E check actually drove; a step the agent did not run is marked `[not run by agent]`. A command that needs a token or key carries a placeholder and where it comes from, never the value.
-
-The ship approval binds the project's whole source snapshot as the review saw it: every tracked file plus every untracked file git does not ignore, minus `.sdlc/`, by path, content, and executable bit. Committing those exact bytes keeps the binding valid. An edit, a new file, a deletion, a chmod, or a symlink swap afterwards breaks it, even in a file the review did not name, and `check-gate.sh`, `status.sh`, and `close.sh` name the files that changed. Submodule contents are not bound. Files are hashed in batches, so a shipped close on a repository of a few thousand files takes seconds.
-
-Executable bits follow Git's `core.filemode`. When it is `false`, as on Git Bash for Windows, tracked files use the index mode and new files count as non-executable: mark an executable with `git add --chmod=+x` before review.
-
-After the handoff, a review comment or a CI failure is a finding. While the feature is open, it is accepted or declined with a reason, and an accepted one is fixed under build, reviewed again, re-approved, and pushed. Once the feature is closed, it becomes a new feature with the comment as its origin.
-
-### Failed runs leave knowledge
-
-```bash
-gates/close.sh <slug> <shipped|abandoned|dead-end|handed-off> "reason"
-```
-
-An abandoned or dead-end run cannot close until a lesson records what was tried, why it failed, and what would unblock it (at lazymode ≥3 the close reason is the record). A handed-off close must name the external ticket or PR. Closing archives the feature and its approval records to `.sdlc/archive/<slug>/`, which keeps `status.sh` scoped to open work.
-
-A lesson is kept only when it changes what a future run does. When a lesson tag repeats three or more times in `INDEX.md`, `close.sh` prints a reminder to promote the fix to the strongest mechanism that fits: a test, lint rule, or check in the project first, then a `check:` line in the verify recipe, a stage-skill edit last.
-
-### Incident diagnosis starts with cheap probes
-
-Stage 6 does not begin with a broad agent fan-out. It first checks the deployed source: `tools/refcheck.sh` compares the working tree against the target revision (or the real deployment SHA, with `--deployed-sha`) and reports UNKNOWN rather than guessing when a ref or fetch fails. Then the agent asks what was done with what input, what happened instead, where, as whom, and what trace exists, and runs the short probes in `skills/6-maintain/probes.md`. They catch four common diagnosis mistakes before they reach a fix plan:
-
-- reading a stale checkout instead of the deployed branch;
-- changing one shared query without auditing every caller;
-- adding a `try/catch` where the lower layer already swallows the error;
-- calling a change "zero risk" without checking normal missing-data states.
-
-When the probes do not show the cause, the agent lists rival causes and eliminates them by runtime observation. When the incident cannot be reproduced, fresh-context adversaries recount the scope, prove the claimed error propagation, attack every "never" claim, and propose a rival cause. Requested console, network, or screenshot evidence stays visible in `status.sh` until it arrives or is waived.
-
-## Cockpit
-
-```bash
-gates/status.sh [--all[=n]] [slug]  # open features + one next action; --all adds the newest 20 archived
-gates/status.sh --json [slug]       # the same state, machine-readable (tools/auto.sh)
-gates/stats.sh [--all]              # time per stage + re-approval counts; default open + 20 recent closed
-```
-
-Example:
-
-```text
-== claims-status
-  intent   APPROVED (@ 2026-08-28T10:18:53Z · delegated)
-  spec     APPROVED (@ 2026-08-28T10:43:30Z · delegated)
-  plan     PENDING approval
-  ship     —  (no artifact)
-  next  →  plan gate (tiered): gates/approve.sh plan ...
-```
+Build follows the [ponytail](https://github.com/DietrichGebert/ponytail) approach — the
+smallest complete change — with the rules written into the phase file, so no
+other skill is needed.
 
 ## Drive it from a host
 
-A scheduler, a webhook, or a multi-agent runtime can drive the loop without reading prose. There is no daemon and no database; only `tools/verify.sh` needs python3.
+`sdlc.sh status --json` lists every feature with its phase, state, score and
+route, plus `ageDays` (since the earlier of its first event and the folder's creation),
+`lastEventAt`, `stage` and `stages`. `sdlc.sh next <slug>` exits `0` ready, `10` needs a human, `20`
+blocked, `30` done. The scripts record and report; they never run a model. An
+unattended run ships no further than your recorded words allow — a local
+commit unless you said more. Windows: run `sdlc.sh` in Git Bash or WSL.
+
+## Personal to-do
+
+Keep work across projects in one human-readable `~/.sdlc/todo.md`.
+A tray badge, a TUI and a localhost web page (a board by default, the list one click away) show and update the same file live.
+Set `SDLC_TODO` to use another file.
+This optional add-on requires Node 18+; the core loop still needs only bash.
 
 ```bash
-tools/auto.sh next <slug>              # one line; exit 0 ready · 10 needs-human · 20 blocked · 30 complete
-tools/auto.sh status --json [slug]     # schema sdlc-kit/auto-status@1
-tools/auto.sh intent-check <slug>      # is this intent.md safe to run unattended?
-tools/auto.sh checkpoint <slug> …      # pending step, bounded attempts, completed effects
-tools/verify.sh run|check|baseline|coverage <slug>   # the verification recipe; receipt bound to the source
-tools/handoff.sh push|check <slug>     # push the review branch (needs --authorized); prove it is on the remote
-tools/kb.sh index|show|search|list|harvest   # read the records back
+cargo build --release --manifest-path ~/sdlc-kit/todo/app/Cargo.toml   # once, for the app (Rust 1.88+)
+SDLC_TODO_LANG=ko bash ~/sdlc-kit/todo/app/install-macos.sh            # macOS: also add it to ~/Applications
+node ~/sdlc-kit/todo/todo.mjs                     # the app: tray badge that opens the board (TUI with its web link if the app is not built)
+node ~/sdlc-kit/todo/todo.mjs --ui tui,web        # any of tui, web, app
+node ~/sdlc-kit/todo/todo.mjs web --open          # web page only (the board)
+node ~/sdlc-kit/todo/todo.mjs add "Fix login ~/code/web https://acme.atlassian.net/browse/WEB-123" --by jira
+node ~/sdlc-kit/todo/todo.mjs next                # first Open item
+node ~/sdlc-kit/todo/todo.mjs take <id> --json    # one item a worker owns, with its replies
 ```
 
-The host wakes an agent. The agent reads `next`, performs that one stage action under the stage skill, and loops. These scripts report and record; they run no model and perform no stage. `ready` means the next action is one this project's lazymode lets an agent take, not that a script reviewed anything.
+The web page opens on the **board**, where you answer and approve without leaving it.
+Columns follow the sdlc phase: General (items with no sdlc work, shown only when there are some), Intent, Plan, Build, Evidence, Deliver, then Done for the last 7 days, collapsed; older-format (`legacy`) items sit in a collapsed box below.
+Rows say whose turn it is, from the same status as everywhere else: your turn, waiting on others, blocked, agent's turn; a pulsing dot marks a card an agent is working on.
+Open items that share one ticket link are one card. Cards with no change for more than 14 days hide behind a toggle, unless they are your turn, blocked or pinned.
+The top strip shows the counts, the feed status and alerts, the last update, the language menu, and the views Board, List, Runs and Health; Runs and Health appear only with a feed.
+Below about 900 px wide the page shows the list, and the List view keeps everything the page did before.
 
-Three boundaries do not move:
+A card opens the decision panel: the question, an **AI pick** badge on the suggested choice, the brief's Background and Why, the choice buttons, a free reply box, Approve intent/plan through the same SHA-bound `/api/approve`, and Fix by agent on a block.
+A choice sends the same ordinary reply as in the list, to the card's item whose turn is yours.
+"Your turn n/N" pages through your cards with ←/→ or j/k, and Esc closes the panel. While a request runs the buttons wait; a toast confirms it, and a failure shows its reason in the panel.
+**Open ticket** opens the link in one popup window docked to the left edge of the screen, not a tab, beside the decision panel, which stays on the right, so you read the ticket and decide at once. That window follows you to the next card's ticket as you move on. Ticket sites such as Jira refuse to be framed (X-Frame-Options).
+In the reply box, Enter sends and Shift+Enter starts a new line; an Enter that confirms Korean (IME) input never sends. The list's reply box works the same.
+Every button shows a tooltip with its action and key on hover or keyboard focus, such as "Open ticket (T)". **Keys** in the top strip, or `?`, opens the table below. Single keys work only outside a text box.
 
-- **A material question stops the loop.** An unattended run never guesses away a question whose wrong answer would change what gets built or exceed the scope the human authorized.
-- **Runtime proof is executed, not asserted.** `.sdlc/verify.md` maps each requirement to the project's own command or a stated gap. `tools/verify.sh run` runs every check, bounded, and binds the receipt to the source, the recipe, and each command's output: changed code makes it `stale`, an edited log `invalid`. Under `profile: strict`, review-ready needs a passing runtime or e2e check against a runtime that run launched. With a recipe, ship refuses a receipt that is not `ok`; a `blocked` one (no environment to run in) ships only with the human's own words (`--accept-gap`). Like the approval hash, the receipt is change detection, not authentication.
-- **The loop ends at a pushed feature branch.** `tools/handoff.sh push` re-runs the ship gate and the verification just before it pushes, and requires that the scope authorization in `intent.md` names a publication: an agent cannot authorize an external effect for itself. Merging or deploying is a separate human approval, recorded in `delivery.md`, at every lazymode level.
+| Key | Does |
+|-----|------|
+| ←/→, j/k | Previous or next card of yours |
+| 1–9 | Send the choice with that number |
+| R | Go to the reply box |
+| Enter / Shift+Enter | In the reply box: send / new line |
+| T | Open ticket |
+| F | Fix by agent |
+| M | More or less |
+| A | Go to Approve (approve there with Enter or Space) |
+| ? | The key table |
+| Esc | Close the tooltip, the key table, then the panel |
+| ←/→, Home/End | On the width handle: panel width |
 
-Full contract, drive/resume procedure, and a Symphony example: [`docs/automation.md`](docs/automation.md).
+Approval is a human gate, so no single key approves.
+A newly opened board asks older board windows to close (BroadcastChannel); a browser closes only windows scripts may close, such as the app's.
 
-For delivery-sized slices, early runnable proof, scoped quality checks, and
-efficient independent review, use the [software factory guide](docs/software-factory.md).
+An optional **feed** lets another program, such as a ticket factory, add its own status to the board. The server reads `SDLC_TODO_FEED`, else `todo-feed.json` beside the to-do file (`~/.sdlc/todo-feed.json` by default; up to 1 MB), watches it, serves it at `GET /api/feed` behind the token like every `/api` route, and sends it as `feed` (and `feedError` when unreadable) in every payload and event. Without the file the board works the same. Schema version 1; every field is optional and every string is shown as plain text:
 
-## Works in complex codebases
-
-sdlc-kit is a process layer, not a replacement for the project's existing rules:
-
-- **Project rules win on how:** commands, branches, style, tools, deployment policy.
-- **sdlc-kit wins on process:** stages, approval gates, evidence, memory.
-- **Existing knowledge wins:** `DOMAIN.md` points to existing glossaries, `CONTEXT.md`, and ADRs instead of copying them.
-- **Existing agents win:** local QA, browser, API, reviewer, or DB specialists execute the kit's role contract.
-- **Monorepos stay scoped:** use one `.sdlc/` per shipping unit; root only for cross-unit changes. A unit without its own store runs in the nearest one above it, never outside the loop.
-
-A genuine rule conflict is shown to the human with both texts quoted. The agent does not resolve it silently.
-
-## Greenfield and brownfield
-
-**Greenfield:** Stage 1 records the problem and checks required integration points before Stage 2 opens.
-
-**Brownfield:** probes establish AS-IS first, the plan captures a baseline before editing, and evidence proves the TO-BE and the unchanged neighboring behavior.
-
-## Upgrade
-
-```bash
-cd ~/sdlc-kit && git pull
-cd /path/to/project && ~/sdlc-kit/init.sh
+```json
+{"version": 1, "source": "factory", "generatedAt": "ISO time",
+ "status": {"state": "idle|running|held|off", "text": "", "lanes": {"busy": 1, "total": 3}, "nextRunAt": "ISO time"},
+ "alerts": [{"level": "bad|warn|info", "text": "", "since": "ISO time"}],
+ "items": {"<ticket label or sdlc slug>": {"slug": "", "column": "", "chip": "", "turn": "", "waitingText": "", "service": "", "nextStep": "", "updatedAt": "ISO time"}},
+ "runs": [{"key": "", "label": "", "startedAt": "ISO time", "endedAt": "ISO time", "outcome": "ok|fail|unknown"}],
+ "health": [{"title": "", "rows": [{"label": "", "value": "", "level": "bad|warn|info"}]}]}
 ```
 
-`init.sh` is idempotent: existing files stay intact, seed files from later kit versions are added, and narrower ignore lines from older kits give way to `/.sdlc`. It never touches the git index, so records an older kit committed stay tracked until you untrack them (`init.sh` prints the command). An approval in an older binding format (no digest, or a ship approval bound only to the uncommitted diff) fails closed, and the gate prints the re-approval command.
+A feed item matches a card by its ticket label (`WEB-123`), else by a member's sdlc slug. `column` (a phase or `done`) moves the card; `turn` (`you`, `others`, `blocked` or `agent`) changes its row only while the to-do says agent's or others' turn, so a feed never hides your turn or a block; `chip` is shown on the card. Runs draws `runs` as a day timeline; Health shows `health` and `alerts`. The kit still calls no ticket API: the producer writes the file.
 
-A Windows clone made before the kit pinned its line endings still holds CRLF scripts, which bash refuses to run. Re-normalize that clone once (this discards any local edits inside the kit clone):
+The TUI and web page show English or Korean: pass `--lang ko` (TUI or `web`) or set `SDLC_TODO_LANG=ko`; the flag wins, an unknown variable means English, and English is the default.
+Press `L` in the TUI or use the page's language menu to switch until restart or reload.
+Statuses say who acts next: your turn (approve intent, approve plan or answer), working now (an agent marked it with `working` within the last 3 minutes; it shows how long and on what), agent's turn (nobody is on it yet), answered — not picked up yet, not started, blocked — fix needed, or done; the row where agents stop says so.
+An item may carry a markdown brief (`brief <id> <absolute path>` or `add --brief PATH`, stored as `  - brief: <path>`); the app and page show it like an sdlc work document (At a glance, Questions for you, full text folded) without approval. Write it from `todo/brief.md`, the one format the app reads (Your call, What changes, AI pick, Phase, Background, Why); leave out a line you cannot fill. Every fenced code block in a brief or work document gets a Copy button that copies its exact text, so a run sheet's SQL or command can be pasted as written.
+An item may also name the repositories its change touches (`repos <id> web-api,admin-api`, stored as `  - repos: web-api, admin-api`; no name clears it). The app card, the page row and detail, and the TUI row and detail always show them.
+A decision can offer one-click answers (`choices <id> "proceed | fix first | hold" [--pick N]`, stored as `  - choices: proceed | fix first | hold` and `  - pick: N`; up to 6 labels, no labels clears them). On an open item the app card, the page detail (above the reply box) and the TUI (number keys) show one button per label; a click sends that exact label as an ordinary reply, and the picked one comes first, marked Recommended. Open items that need you and share a ticket link sit together under that ticket in the app and page.
 
-```bash
-cd ~/sdlc-kit && git rm --cached -r -q . && git reset --hard
-```
+An agent can also prefill the answer it recommends (`suggest <id> "answer"`, stored as `  - suggest: answer`; a human reply or no text clears it). The app card, the page reply box and the TUI reply line (`r`) start with that text, so sending it as-is takes one press; an edit is never overwritten, and a new suggestion replaces only an unedited one. On the app card the "agent is asking" box shows only the brief's Your call and AI pick (the waiting line only when the brief asks nothing), with What changes as one muted line below it.
 
-## Repository map
+An agent working on an item right now marks it with `todo.mjs working <id> ["step"]` (e.g. `build`, `dev QA`), repeats it at least every 60 s, and clears it with `working <id> --off`. The mark lives in `todo-working.json` beside the to-do file (owner-only), never in `todo.md`, and expires 3 minutes after its last refresh, so the mark of a worker that died disappears by itself. Every view shows it as "Working now · 12 min · build" with a pulsing green dot; an open item no agent has marked reads "Agent's turn". `list --json` and the web API carry it as `working: {what, since, beat}` or `null`.
 
-```text
-SKILL.md         discovery router: start · continue · status · close
-AGENTS.md        full portable process contract
-init.sh          idempotent project seed
-skills/1-6/      stage instructions
-roles/           verifier · adversary · researcher contracts
-gates/           approve · check-gate · close · status · stats · selftest (+ _common.sh, _auto.sh)
-tools/           auto · verify (needs python3) · handoff · kb · qa-mode · tripwire · refcheck · _run.py
-templates/       artifacts, memory pages, verify recipe (intent, spec, plan, evidence, area, lesson, …)
-docs/            index.html (bilingual EN/KO site) · automation.md (machine contract) · jev-qa.md
-tests/           bounded runner tests · real CLI development lifecycle E2E
-log/             release notes
-.gitattributes   pins LF endings so scripts survive a Windows clone
-```
+When the human has to run something (a VPN login that asks for an OTP, say), the agent records it with `run <id> "command"` (`  - run: command`; a reply, `resume`, `done` or no text clears it). The app card shows the command and an **Open in Terminal** button: on macOS with zsh, Terminal opens with the command typed at the prompt but not run, so you read it and press Enter; elsewhere the button copies it. The page and TUI details show the command.
+**Run command.** For one command an agent may not run (an `rm -rf` outside its folders, say), it records `exec <id> --json '{"argv":["rm","-rf","/abs/path"],"cwd":"/abs/dir","why":"one sentence"}'` (one `  - exec: JSON` line; `exec <id> --clear`, a reply, `wait`, `resume` or `done` clears it). The terminal `run` above is unchanged, and an item may carry both. An item with `exec` is your turn. The board panel and the list details show it under "Command to run" with its folder, argument count and reason; line breaks, invisible and direction-changing characters are shown as escapes such as `$'…\n…'`, with a warning. **Run command** (key `X`) opens a dialog that shows the program that will actually start, found on your login shell's PATH; if it is not found, nothing can run. A long command must be opened with **Show all** first. Only **Run**, or Enter at least 0.4 s after the dialog opens (a held key's repeats are ignored), makes the server start that program without a shell, for at most 300 s; then the whole process group gets TERM and, 5 s later, KILL. The exit code and the end of the output appear. On exit 0, when no new question arrived meanwhile, `ran: <command> (cwd <folder>) → exit 0 · output: "<last line>"` is saved as your reply and the command is cleared; a failure keeps the wait and the command to retry or answer by hand. Start and end are recorded on the item (`exec started run=…`, `exec finished run=…`) and in `~/.sdlc/todo-runs.log` (owner-only); a run cut off by a server stop is marked "interrupted (server restarted)" at the next start. Each finished run also stores one `  - execResult: {"argv":[…],"cwd":"…","resolved":"/abs/program","exitCode":0,"timedOut":false,"signal":null,"at":"ISO time","run":"id"}` line (the latest run only; `exec --clear`, replies, `wait`, `resume` and `done` keep it), shown as `execResult` in `list`/`next`/`take --json` and `/api/items`; programs read that, not the reply text. On Windows the board does not run commands yet: it shows why, `execPath` is `''`, and `/api/exec` answers 409. A command result is not approval.
+A reply shows "answered — no agent has picked it up yet" until an agent reads it with `next` or `take`; after an sdlc wait the item then waits for you again until sdlc.sh moves on. A worker that waits on you outside sdlc (an approval, a ticket answer) records it with `wait` and drops it with `resume`. When someone else must answer first (QA, a planner), `others <id> "who"` marks it "waiting on someone else": it leaves Needs you, `next` passes it by (`take` exits 15), and a reply, `wait` or `resume` clears it.
+All surfaces share one server: the first launch writes its port and token to `todo-web.json` beside the to-do file (owner-only), and later launches, the app and `todo.mjs serve` reuse it while it answers.
+A pinned item (`todo.mjs pin <id>`), such as a setting switched with its choices, stays at the top of every app tab and is not counted as needing you. The app (`todo/app`, macOS and Windows) starts with no window: it sits in the menu bar or tray with a count of items that need you and notifies you when one appears. Launching it or a left click on the icon opens the board. On macOS the board is a window of the app itself, drawn by the system webview (WKWebView), with no browser needed; it keeps its size and place in `todo-app-window.json` beside `todo-app.json`, closing it only hides it, and after a server restart it loads the new address. A ticket the board opens (its link, **T**) shows in your own Google Chrome, where your Jira login lives, in one window docked at the screen's left edge (45% wide, full height) and reused for the next ticket; the board and its panel stay where they are. macOS asks once to let the app control Chrome. Without Chrome, or when that fails, the ticket opens in the default browser. Where the board's webview cannot start, and on Windows, the board opens in a Google Chrome app window (`--app`, no tabs) when Chrome is installed on macOS, otherwise in the default browser, and on macOS the app logs why. Its menu has Open board, Open list window and Quit. `--background` or `SDLC_TODO_BACKGROUND=1` starts it in the tray only, for a login item. While the server is offline a click shows the list window with the reason. The list window, the fallback, shows the decisions that need you one at a time, like pages of a book (the page number and arrows sit at the foot; the arrow keys turn the page), with approvals, blocks and questions the agent recommends no answer for first: the question, the situation, what happens once you answer, why, the agent's pick and what each choice does (the phase, repos and full work document fold away under More). On a wide window a decision opens as a two-page spread, what to read on the left and how to answer on the right. You can keep a memo of your own on an item and set the text size and font (Pretendard is built in); both stay in `todo-app.json` beside the session file and never reach agents. It opens the related tickets, and answers, approves and requests fixes through the same web API, so it never writes `todo.md` itself; closing the window keeps it in the tray, and Quit stops the server it started. On macOS, `todo/app/install-macos.sh [DIR]` builds `sdlc To-do.app` (name: `SDLC_TODO_APP_NAME`) in `~/Applications`; its Info.plist records the kit, node, language and `SDLC_TODO`, because Finder starts apps without a shell `PATH`. Run it again after updating the kit or moving node.
+**Fix by agent** (app and page button, TUI `f`) on a blocked sdlc item records `fix requested`; the next `next` or `take` hands the block to an agent once (exit `0`, `"fix": true`), then it stops the queue again until cleared.
+To start an agent right away, put a command in `todo-agent.json` beside the to-do file, for example `{"fix": ["claude", "-p", "follow {kit}/todo/AGENT.md; take {id} and clear its block"]}`; `{id}`, `{kit}` and `{project}` are filled in and it runs detached in the project.
+To add a language, copy `todo/locales/en.mjs` to `todo/locales/<code>.mjs`, translate `name` and every message, and add its import to `locales` in `todo/i18n.mjs`.
+The flag, the TUI key, the page menu and the served files follow that registry; the parity test fails on a missing key or `{placeholder}`, and a missing key shows in English.
+
+Agents and programs use `todo.mjs add` to attach a project path and ticket link, including Jira links.
+The kit makes no Jira API calls.
+Every sdlc slug, new or resumed, has a to-do item.
+Have a host follow [todo/AGENT.md](todo/AGENT.md) to work proactively.
+It includes Claude Code `/loop`, cron/launchd and Paseo recipes; the kit never runs a model.
+
+`next` exits `0` workable, `10` waiting for the human, `20` blocked with error text, or `30` nothing to do; it passes items waiting on someone else, which `take` returns with `15`.
+Agents must stop at a waiting or blocked first item and never skip to a lower one.
+Gate approvals and intent Questions for you surface through sync; the agent stops without adding an explicit wait.
+Use `wait` only for questions sdlc.sh does not track, such as which project or a question outside an sdlc artifact.
+Decide in the TUI, web page or chat; replies inform the artifact and never count as approval.
+The web page shows intent or plan before approval.
+
+Completed items are checked, struck through and moved to Done, newest first.
+Done keeps 30 items; older ones move to `todo-archive.md` beside the to-do file.
+History records local time as `YYYY-MM-DD HH:MM`, with the author and action.
+You can edit the file directly; saving an old editor buffer can overwrite newer changes.
+
+Web access stays on `127.0.0.1`, with Host/Origin checks and a per-run token held in memory by the server and page.
+The kit never writes the token to disk; the browser may keep the opened URL in history. The token dies when the process exits.
+Approve binds the bytes shown through `sdlc.sh approve <intent|plan> <slug> --human "<words>" --sha <hex>`; changed bytes are refused.
+Same-user programs are outside this boundary, as with `--human`.
+The board and the feed change none of this. The feed is untrusted text: the page shows it as plain text, and it can move or label a card but never answer, approve or hide your turn.
+
+## Upgrading from v0.x
+
+v2 is a new contract. Your records stay where they are.
+
+- Features started under v0 show as `legacy` in `sdlc.sh status`. Finish them
+  with the old kit (`git -C ~/sdlc-kit checkout v0.27.0`) or close them:
+  `sdlc.sh close <slug> dropped "<reason>"`.
+- `lazymode` keeps working: 0–1 → `human_gates: intent plan`, 2–3 → `intent`,
+  4 → none. Write `human_gates:` to choose explicitly; a word other than
+  `intent` or `plan` means both.
+- `.sdlc/memory/` is the default memory folder, as in v0; a `knowledge:` line still
+  names the folder, and `sdlc.sh` reports a default folder that is not it.
+- `init.sh` → `sdlc.sh init`; `gates/status.sh --json` and `tools/auto.sh
+  next` → `sdlc.sh status --json` and `sdlc.sh next` (same exit codes).
+  spec.md, summary.md, delivery.md, qa-guide.md, map.md, harvest, verification
+  receipts, handoff, tripwire, refcheck and the QA-mode switch are gone: their
+  jobs live in PLAN.md, evidence.md, `sdlc.sh close` and config `qa:`.
+
+Why: [v2.0.0 changelog](log/changelog-v2.0.0.md).
 
 ## Verify the kit
 
 ```bash
-bash gates/selftest.sh
-python tests/test_runner.py
-bash tests/factory-e2e.sh
+bash tests/selftest.sh
 ```
 
-The selftest checks script syntax, LF endings, skill frontmatter, gate bindings,
-lazymode, closure, knowledge records, and verification receipts. CI runs that
-selftest on Ubuntu, macOS, and Windows (Git Bash). With Python 3, the runner
-tests check bounded execution and cleanup; the factory E2E drives a real task
-CLI through a feature, bug regression, verification, and local review-branch
-delivery. These are deterministic harness checks, not agent-quality scores or
-proof of every product behavior. See the [guide](docs/software-factory.md#check-the-kit-separately-from-an-agents-performance).
+Word budgets for every prompt, the gate and routing rules, and one real
+feature driven through all four phases on a small CLI fixture. CI runs it on
+Linux, macOS and Windows. When `node` is on `PATH`, the selftest also runs the
+to-do suites (`node --test tests/todo*.test.mjs`).
 
-## What this is not
+Last observed (2026-11-02, `bash tests/selftest.sh` in CI on main, macos-latest):
+133 selftest checks passed and the to-do suites reported 192 tests, 192
+passed, 0 failed, 0 skipped. Linux also passed 133 checks; Windows passed 131 and
+skipped 2 that need POSIX signals or permissions
+([run 40613802450](https://github.com/cskwork/sdlc-kit/actions/runs/40613802450)).
+The full selftest takes several minutes because it creates many throwaway git
+repositories.
 
-- Not an autonomous production deployment system.
-- Not a substitute for project tests, CI, branch protection, or security review.
-- Not a promise that an agent cannot lie or forge files.
-- Not another agent runtime. Keep your agent tool and add this process.
+## Limitations
 
-## Try it
+- Independence of the reviewer and QA depends on the harness supporting
+  subagents or fresh sessions; the script records verdicts but cannot prove
+  who wrote them.
+- `--human` is a recorded claim, not authentication: any program running as
+  the same user can call it.
+- Parsing is awk over Markdown tables, so artifacts must keep the template's
+  headings and columns; the script reports a malformed row instead of guessing.
+- The selftest is slow (it builds many throwaway git repositories), and there
+  is no shellcheck step in CI.
 
-Start with one small brownfield issue. Compare what the independent verifier finds with what the author reported.
+## License
 
-If the process works for your team, star the repository or open an issue for the agent tool or workflow you want supported next.
-
-<div align="center">
-
-[**Get started**](#quick-start) · [**Live site**](https://cskwork.github.io/sdlc-kit/) · [**Latest release**](https://github.com/cskwork/sdlc-kit/releases/latest) · [**Open an issue**](https://github.com/cskwork/sdlc-kit/issues/new)
-
-</div>
+MIT
