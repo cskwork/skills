@@ -66,7 +66,7 @@ The reviewer is _independent_: it reads the diff without the author's reasoning.
 
 | Harness | Command |
 |---------|---------|
-| Claude Code | `/code-review medium`; use `high` for auth, permissions, deletion, data migration, or money. It reads the loaded project instructions, not `REVIEW.md`, so keep review rules in `AGENTS.md`. |
+| Claude Code | `/code-review medium <base>...HEAD` on a branch with pushed commits (without a target it skips what the tracking branch already has), plus the staged change; use `high` for auth, permissions, deletion, data migration, or money. It reads the loaded project instructions, not `REVIEW.md`, so keep review rules in `AGENTS.md`. |
 | Codex CLI | `codex review --uncommitted` for the working tree, `codex review --base <branch>` for a branch. `--base` shows the net change against the merge base, so a staged edit that reverts a branch commit disappears from it; on a branch with earlier commits, also review `git diff --cached` on its own. The scope flags take no prompt, so a later round restates round 1's full scope and the earlier findings as the prompt: `codex review "Review git diff <base>...HEAD plus the staged change. Earlier findings: …"`. |
 | Any other | A fresh subagent with no conversation history. Give it the diff command and the path to the repo's review rules only; ask for correctness findings, each with `file:line` and a concrete failure scenario. |
 
@@ -83,8 +83,9 @@ The receipt names the base commit and the exact staged tree that verify and revi
 ## Gate 4: Commit and push
 
 1. Commit the staged change with the repo's message conventions and hooks. Anything else to stage sends the work back to gate 2.
-2. Push when the user or the repo's instructions authorize it.
-3. Confirm the remote holds the commit: `git log -1 origin/<branch>` after a fetch, or `git ls-remote origin <branch>`.
+2. Compare `git rev-parse 'HEAD^{tree}'` with the snapshot tree (a docs-only commit notes `git write-tree` just before committing). When a hook rewrote and re-staged files, they differ: keep the commit unpushed, run gates 2 and 3 on it against the snapshot HEAD, and go on only when both pass; a fix becomes a new staged change that starts at gate 2.
+3. Push when the user or the repo's instructions authorize it.
+4. Confirm the branch you actually pushed to holds the commit: `git ls-remote <remote> refs/heads/<branch>` prints its SHA.
 
 ## Report
 
