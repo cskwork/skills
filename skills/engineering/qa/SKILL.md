@@ -38,7 +38,7 @@ Arguments given in the request override any model routing in the user's own inst
 
 Read the repo instructions (`AGENTS.md`, `CLAUDE.md`), then collect:
 
-- **Changes:** `git log --oneline <since>..HEAD` and `git diff --stat <since>...HEAD`. From the diff, list changed endpoints, queries/mappers, tables, and screens with file paths.
+- **Changes:** `git log --oneline <since>..HEAD` and `git diff --stat <since>...HEAD`. From the diff, list changed endpoints, queries/mappers, tables, and screens with file paths. Mark every added or changed SELECT (mapper XML, batch SQL) with its endpoint and the tables it reads; each one gets the performance lens.
 - **Domain intent:** from `GLOSSARY.md`, `docs/adr/`, schema and column comments, enums and constants, specs, and the ticket behind each change, write a table of entities, their states and allowed transitions, invariants (counts, sums, uniqueness, ownership), and what each role may see or do. Every rule cites its source; a rule nobody wrote down is marked `intent unknown`, never inferred from the code.
 - **Environment:** base URL, API base, test accounts per role, DB host.
 - **Existing QA assets** to reuse: `browser-qa` scenarios, `release-stability-e2e` domains, `.bughunt.md`, project fixtures.
@@ -50,7 +50,7 @@ Done when `<run-dir>/plan.md` holds mode, target, environment with verified host
 
 ## 2. Slice
 
-Slices are disjoint: each owns its journey or lens, its accounts, its created data, and its browser session. Name slices in domain terms (roles, entities, states). Test data is domain-realistic: real roles, plausible values, and the edge states the domain names (a cancelled order, a user who changed roles, a closed period), so a pass means the domain works, not only the form. Derive slices from the change list first; fill the rest from these defaults in order (merge from the bottom when N < 5, split the busiest when N > 5).
+Slices are disjoint: each owns its journey or lens, its accounts, its created data, and its browser session. Name slices in domain terms (roles, entities, states). Test data is domain-realistic: real roles, plausible values, and the edge states the domain names (a cancelled order, a user who changed roles, a closed period), so a pass means the domain works, not only the form. Derive slices from the change list first; fill the rest from these defaults in order (merge from the bottom when N < 5, split the busiest when N > 5). The backend performance lens (6) is never merged away while a SELECT changed: with fewer slices, the Before vs after slice also runs it.
 
 **E2E users** (each is a person with a goal, walking the changed paths as that person would, never as a tester reading the code):
 
@@ -67,6 +67,7 @@ Slices are disjoint: each owns its journey or lens, its accounts, its created da
 3. Domain integrity: rows in touched tables against the domain intent table: states, combinations, and transitions the domain forbids; values outside the meaning their column claims; orphans; missing FK or unique guarantees.
 4. Aggregates and time: counts and sums vs raw rows, date boundaries, time zone, period cut-offs.
 5. Before vs after: run the pre-change query (from git) and the new one on the same data; explain every differing row.
+6. Performance: for each changed SELECT, `EXPLAIN ANALYZE` (or the engine's equivalent) the pre-change and new query on the largest realistic scope (the class, tenant, or module with the most rows); record actual time and plan shape, and time the changed endpoint before and after. A finding (major; blocker when it can reach a client timeout): time over 2x or 500 ms more, a full scan repeated per outer row (loops > 1), a lost hash join, or a correlated subquery (`NOT EXISTS`, `IN`, scalar) added to a join condition or select list on a large table. The fix proposal prefers a scoped set filter; a missing index becomes an unapplied DDL proposal. The repo's own SQL performance rule, when it has one, sets the thresholds.
 
 Done when every changed path in `plan.md` maps to at least one slice or is marked uncovered with the reason.
 
