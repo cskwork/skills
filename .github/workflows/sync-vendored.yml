@@ -63,6 +63,8 @@ jobs:
           git add -A "${{ matrix.dest }}"
           if git diff --cached --quiet; then echo "No change"; exit 0; fi
           sha=$(git ls-remote "https://github.com/${{ matrix.repo }}.git" HEAD | cut -c1-7)
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m "skills: sync ${{ matrix.dest }} from ${{ matrix.repo }}@${sha}"
+          # Set for the whole clone: the rebase below commits too.
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "skills: sync ${{ matrix.dest }} from ${{ matrix.repo }}@${sha}"
           git pull --rebase -q && git push
