@@ -190,8 +190,8 @@ rep('<span class="private-badge">Private</span>', '<span class="private-badge">�
 
 # ---- liner notes (system prompt)
 rep('<h2 id="liner-h">Liner notes</h2>', '<h2 id="liner-h">라이너 노트</h2>')
-rep('<p>The system prompt every agent gets: <a href="https://github.com/cskwork/skills/blob/main/system-prompt/AGENTS.md">system-prompt/AGENTS.md</a>, printed here in full.</p>',
-    '<p>모든 에이전트가 받는 시스템 프롬프트 <a href="https://github.com/cskwork/skills/blob/main/system-prompt/AGENTS.md">system-prompt/AGENTS.md</a> 전문을 한국어로 옮겼습니다. 설치되는 원문은 영어입니다.</p>')
+rep('<p>The operating instructions below are part of <a href="https://github.com/cskwork/skills/blob/main/system-prompt/AGENTS.md">system-prompt/AGENTS.md</a>. The installed prompt also points agents to <a href="https://github.com/cskwork/design-baseline">design-baseline</a> for UI/UX and game design work.</p>',
+    '<p>아래 운영 지침은 설치되는 <a href="https://github.com/cskwork/skills/blob/main/system-prompt/AGENTS.md">system-prompt/AGENTS.md</a>의 일부입니다. 에이전트는 UI/UX나 게임 디자인 작업에서 <a href="https://github.com/cskwork/design-baseline">design-baseline</a>도 참고합니다.</p>')
 rep('<blockquote>Use the simplest existing solution that meets the current requirement.</blockquote>',
     '<blockquote>지금 요구를 충족하는 가장 단순한 기존 해법을 쓴다.</blockquote>')
 ESSAY = [
