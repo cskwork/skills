@@ -62,6 +62,7 @@ The included system prompt does not set a reply style. To make Caveman your defa
 | [prototype](skills/engineering/prototype) | Build a throwaway prototype to answer a design question. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [retro](skills/engineering/retro) | Run a retrospective on a coding session. | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | [jk](skills/engineering/jk) | Drive Jenkins from the terminal with the `jk` CLI: jobs, runs, logs, artifacts, credentials. | [avivsinai/jenkins-cli](https://github.com/avivsinai/jenkins-cli) |
+| [atlassian-cli](skills/engineering/atlassian-cli) | Drive Jira and Confluence from the terminal with Atlassian's `acli`: auth check first, JQL search, bulk edit and transition, CSV/JSON output. | [leweii/atlassian-cli](https://github.com/leweii/atlassian-cli) |
 | [swiftui-pro](skills/engineering/swiftui-pro) | Review SwiftUI code for modern API use, data flow, navigation, accessibility, and performance, with before/after fixes. Pairs with mobile-ui-ux. | [twostraws/SwiftUI-Agent-Skill](https://github.com/twostraws/SwiftUI-Agent-Skill) |
 | [simless](skills/engineering/simless) | Default way to test iOS apps: render SwiftUI screens as accessibility trees, hot-reload views, and run unit tests on the Mac without a simulator; the simulator is kept for the final pass. | [abacusai/simless](https://github.com/abacusai/simless) |
 
