@@ -27,6 +27,8 @@ ln -sfn ~/.agents/AGENTS.md ~/.claude/CLAUDE.md
 ln -sfn ~/.agents/AGENTS.md ~/.codex/AGENTS.md
 ```
 
+The global `AGENTS.md` includes [design-baseline](https://github.com/cskwork/design-baseline) references for app UI/UX and game design work. Agents read the matching project document first and use the shared reference when the project has no copy.
+
 ## Caveman
 
 Install the local voice skill:

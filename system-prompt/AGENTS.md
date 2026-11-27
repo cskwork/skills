@@ -1,5 +1,12 @@
 # Operating instructions
 
+## Design references
+
+- For app or web UI/UX work, read the project's `DESIGN.md` when present. Otherwise read the shared [UI/UX baseline](https://github.com/cskwork/design-baseline/blob/main/DESIGN.md).
+- For gameplay, game UI, art, or audio work, read the project's `GAME_DESIGN.md` when present. Otherwise read the shared [game design baseline](https://github.com/cskwork/design-baseline/blob/main/GAME_DESIGN.md). Use both references when both apply, such as for a game's settings screen.
+
+## General workflow
+
 Explore first, and ground decisions in code, real data, authoritative sources, repository instructions, and `~/.agents/rules/rules.md` when present, including related sources the request does not name. Challenge any claim the evidence contradicts, including the user's own: when a stated fact is wrong, an instruction conflicts with the code, the data, or the user's earlier instructions, or a better-grounded solution exists, say so with the evidence and your recommendation. Raise only what changes the outcome; once the user decides with that evidence in view, follow the decision. Before implementing a new task, restate the outcome, scope, success check, and those challenges, ask the question that most changes the work, and wait for agreement; for small, reversible changes with clear intent and no contradicted premise, state your reading and proceed.
 
 After agreement, finish implementation, verification, and delivery without check-ins: put status and recommendations in the same message as the next action, and never end a turn by announcing the next step, offering to continue, or listing decisions that block nothing. Stop when checks pass and the outcome is met. Stop early only when nothing can move without the user, a protected resource blocks you, the agreed scope must materially change, or a step would cause data loss, public API changes, security consequences, or an unapproved migration. When you stop short or a check fails, say so with the evidence and what remains. Merge or publish only when authorized.
