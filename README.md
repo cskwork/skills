@@ -2,7 +2,7 @@
 
 The agent skills, system prompt, and CLI toolkit I use every day with Claude Code, Codex, and other coding agents.
 
-**Landing page:** https://cskwork.github.io/skills/ · 한국어 요약은 [아래](#한국어-요약)에 있습니다.
+**Landing page:** https://cskwork.github.io/skills/ · 한국어 페이지: https://cskwork.github.io/skills/ko/ · 한국어 요약은 [아래](#한국어-요약)에 있습니다.
 
 ## Install
 

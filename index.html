@@ -8,6 +8,8 @@
 <meta property="og:title" content="cskwork/skills">
 <meta property="og:description" content="31 agent skills, one system prompt, and 12 CLIs. Every skill credited to its author and upstream commit.">
 <meta property="og:url" content="https://cskwork.github.io/skills/">
+<link rel="alternate" hreflang="en" href="https://cskwork.github.io/skills/">
+<link rel="alternate" hreflang="ko" href="https://cskwork.github.io/skills/ko/">
 <meta name="theme-color" content="#1f3bd6">
 <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -312,7 +314,7 @@ section { padding: clamp(3.5rem, 8vw, 7rem) var(--gutter); }
   .bonus { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .bar nav a:not(.gh) { display: none; }
+  .bar nav a:not(.gh):not(.lang) { display: none; }
   .sticker { left: 4%; right: 4%; width: auto; min-width: 0; top: calc(100% - .55rem); bottom: auto; transform: rotate(-2deg); }
   .pitch { padding-top: 11.5rem; }
   .side details > summary { grid-template-columns: 2.1rem 1fr 1.1rem; }
@@ -353,6 +355,7 @@ section { padding: clamp(3.5rem, 8vw, 7rem) var(--gutter); }
     <a href="#liner-notes">Liner notes</a>
     <a href="#recorded-with">Recorded with</a>
     <a href="#credits">Credits</a>
+    <a class="lang" href="ko/" lang="ko" hreflang="ko">한국어</a>
     <a class="gh" href="https://github.com/cskwork/skills"><svg class="icon" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
   </nav>
 </header>
@@ -533,7 +536,7 @@ section { padding: clamp(3.5rem, 8vw, 7rem) var(--gutter); }
       <div class="row"><dt>Runtime</dt><dd><a class="name" href="https://github.com/herdrdev/herdr">herdr</a><p>Terminal workspace manager and runtime for coding agents.</p><code><span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://herdr.dev</span>/<wbr><span class="t">install.sh</span> <span class="t">|</span> <span class="t">sh</span></code></dd></div>
       <div class="row"><dt>Agent</dt><dd><a class="name" href="https://github.com/NousResearch/hermes-agent">hermes</a><p>Nous Research's self-improving agent: it writes skills from experience and keeps its own memory.</p><code><span class="t">curl</span> <span class="t">-fsSL</span> <span class="t">https://hermes-agent.nousresearch.com</span>/<wbr><span class="t">install.sh</span> <span class="t">|</span> <span class="t">bash</span></code></dd></div>
       <div class="row"><dt>Agent</dt><dd><a class="name" href="https://github.com/cskwork/pi-setup-public">pi-setup</a><p>My Pi coding agent setup: this repository as a Pi package, extensions, subagent model routing, a permission policy, and Hindsight memory through pi-hindsight-memory.</p><code><span class="t">git</span> <span class="t">clone</span> <span class="t">https://github.com</span>/<wbr><span class="t">cskwork</span>/<wbr><span class="t">pi-setup-public</span> <span class="t">&amp;&amp;</span> <span class="t">pi-setup-public</span>/<wbr><span class="t">install.sh</span></code></dd></div>
-      <div class="row"><dt>CI</dt><dd><a class="name" href="https://github.com/avivsinai/jenkins-cli">jk</a><p>GitHub-style CLI for Jenkins: contexts, runs, logs, admin. Pairs with track A7.</p><code><span class="t">brew</span> <span class="t">install</span> <span class="t">avivsinai</span>/<wbr><span class="t">tap</span>/<wbr><span class="t">jk</span></code></dd></div>
+      <div class="row"><dt>CI</dt><dd><a class="name" href="https://github.com/avivsinai/jenkins-cli">jk</a><p>GitHub-style CLI for Jenkins: contexts, runs, logs, admin. Pairs with track A8.</p><code><span class="t">brew</span> <span class="t">install</span> <span class="t">avivsinai</span>/<wbr><span class="t">tap</span>/<wbr><span class="t">jk</span></code></dd></div>
       <div class="row"><dt>Token usage</dt><dd><a class="name" href="https://github.com/rtk-ai/rtk">rtk</a><p>Compress shell command output before it reaches coding agents.</p><code><span class="t">brew</span> <span class="t">install</span> <span class="t">rtk</span></code></dd></div>
       <div class="row"><dt>iOS testing</dt><dd><a class="name" href="https://github.com/abacusai/simless">simless</a><p>Headless, simulator-free SwiftUI checks: accessibility-tree renders, hot reload, and unit tests on the Mac. Pairs with track A12.</p><code><span class="t">git</span> <span class="t">clone</span> <span class="t">https://github.com</span>/<wbr><span class="t">abacusai</span>/<wbr><span class="t">simless</span> <span class="t">&amp;&amp;</span> <span class="t">cd</span> <span class="t">simless</span> <span class="t">&amp;&amp;</span> <span class="t">swift</span> <span class="t">build</span> <span class="t">-c</span> <span class="t">release</span></code></dd></div>
     </dl>
